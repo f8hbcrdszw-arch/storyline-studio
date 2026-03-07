@@ -4,6 +4,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { redirect, notFound } from "next/navigation";
 import { getStudyOverviewStats } from "@/lib/aggregation";
 import { ResultsDashboard } from "./components/ResultsDashboard";
+import { ExportButton } from "./components/ExportButton";
 
 export default async function StudyResultsPage({
   params,
@@ -62,6 +63,7 @@ export default async function StudyResultsPage({
             {study.title} — Results
           </h1>
         </div>
+        <ExportButton studyId={id} />
       </div>
 
       {/* Stats overview */}
