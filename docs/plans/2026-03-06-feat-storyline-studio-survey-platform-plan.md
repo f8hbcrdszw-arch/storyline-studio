@@ -670,39 +670,39 @@ const playerVars: YT.PlayerVars = {
 
 **Goal:** Respondents can access a study link and complete all non-video question types.
 
-- [ ] Configurable consent/privacy screen (includes cookie + YouTube tracking disclosure)
-- [ ] Handle link edge cases: inactive → "not accepting responses", nonexistent → 404
-- [ ] Public survey route: `/survey/[studyId]`
+- [x] Configurable consent/privacy screen (includes cookie + YouTube tracking disclosure)
+- [x] Handle link edge cases: inactive → "not accepting responses", nonexistent → 404
+- [x] Public survey route: `/survey/[studyId]`
   - Thin server component verifies study active status
   - Renders client-side `<SurveyShell>` that manages all state
   - Generates anonymous `respondent_id` (UUID in HttpOnly cookie)
   - Creates `Response` record on first question load
   - Duplicate prevention: cookie check resumes existing response
-- [ ] **Rate limiting on public endpoints** (from security review — NOT deferred to Phase 7):
+- [x] **Rate limiting on public endpoints** (from security review — NOT deferred to Phase 7):
   - 1 new response per minute per IP
   - 60 answer submissions per minute per IP
   - 5 new respondent IDs per IP per hour
   - Response velocity checks: flag suspiciously fast completions
 - [ ] **Bot detection**: invisible reCAPTCHA v3 before first question
-- [ ] **Single API call** to fetch all study questions on load (cache in client state)
-- [ ] Session resume: returning respondent picks up from last unanswered question
-- [ ] Survey shell: section-based progress bar, question counter, next/back navigation
+- [x] **Single API call** to fetch all study questions on load (cache in client state)
+- [x] Session resume: returning respondent picks up from last unanswered question
+- [x] Survey shell: section-based progress bar, question counter, next/back navigation
   - One-question-at-a-time (OQAAT) pattern with smooth transitions
   - Bottom-anchored "Next" button within thumb reach
   - Estimated time remaining instead of raw question count
-- [ ] Browser back button handling via `history.pushState`
+- [x] Browser back button handling via `history.pushState`
 - [ ] **Dynamic imports** for question type components (only load current type's code)
-- [ ] Render each question type as respondent-facing component:
+- [x] Render each question type as respondent-facing component:
   - All 16 non-video types with touch-friendly targets (min 44x44 CSS px)
   - Single-column mobile layout, no horizontal scrolling
-- [ ] Answer persistence: save each answer via API as respondent progresses
+- [x] Answer persistence: save each answer via API as respondent progresses
   - Validate answer against Zod schema for question type
   - Validate answer options against actual question configuration
-- [ ] **Server-side screening logic evaluation** on answer submission
-- [ ] Client-side skip logic evaluation for non-screening navigation
-- [ ] Completion screen (configurable thank-you, optional redirect URL)
+- [x] **Server-side screening logic evaluation** on answer submission
+- [x] Client-side skip logic evaluation for non-screening navigation
+- [x] Completion screen (configurable thank-you, optional redirect URL)
   - **Validate redirect URL** against allowlist of approved domains (from security review)
-- [ ] Mobile-responsive layout
+- [x] Mobile-responsive layout
 
 **Key files:**
 - `app/(survey)/survey/[id]/page.tsx`
