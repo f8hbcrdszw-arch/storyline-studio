@@ -504,7 +504,7 @@ function DialResultView({
 }) {
   const svgRef = useRef<SVGSVGElement>(null);
 
-  const handleDownloadChart = useCallback(() => {
+  const handleDownloadChart = useCallback(async () => {
     const svg = svgRef.current;
     if (!svg) return;
 
@@ -512,13 +512,41 @@ function DialResultView({
     const svgW = 700;
     const svgH = parseInt(svg.getAttribute("viewBox")?.split(" ")[3] || "200");
 
+    // Fetch brand font and convert to base64 for embedding
+    let fontBase64 = "";
+    try {
+      const fontRes = await fetch("/fonts/SctoGroteskA-Regular.woff");
+      const buf = await fontRes.arrayBuffer();
+      const bytes = new Uint8Array(buf);
+      let binary = "";
+      for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+      fontBase64 = btoa(binary);
+    } catch {
+      // Fall through — export without brand font
+    }
+
     // Clone and prepare for standalone rendering
     const clone = svg.cloneNode(true) as SVGSVGElement;
     clone.setAttribute("width", String(svgW));
     clone.setAttribute("height", String(svgH));
     clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
 
-    // Inline CSS classes — they won't resolve outside the DOM
+    // Embed font as @font-face in SVG defs
+    if (fontBase64) {
+      const style = document.createElementNS("http://www.w3.org/2000/svg", "style");
+      style.textContent = `@font-face { font-family: 'SctoGrotesk'; src: url('data:font/woff;base64,${fontBase64}') format('woff'); font-weight: 400; }`;
+      const defs = clone.querySelector("defs") || clone.insertBefore(
+        document.createElementNS("http://www.w3.org/2000/svg", "defs"),
+        clone.firstChild
+      );
+      defs.appendChild(style);
+    }
+
+    const fontFamily = fontBase64
+      ? "'SctoGrotesk', system-ui, sans-serif"
+      : "system-ui, sans-serif";
+
+    // Inline CSS classes and set font on all text elements
     clone.querySelectorAll("[class]").forEach((el) => {
       const classes = el.getAttribute("class") || "";
       if (classes.includes("fill-muted-foreground")) {
@@ -526,8 +554,9 @@ function DialResultView({
       }
       el.removeAttribute("class");
     });
-
-    // Replace currentColor with concrete values
+    clone.querySelectorAll("text").forEach((el) => {
+      el.setAttribute("font-family", fontFamily);
+    });
     clone.querySelectorAll("[stroke='currentColor']").forEach((el) => {
       el.setAttribute("stroke", "#d1d5db");
     });
