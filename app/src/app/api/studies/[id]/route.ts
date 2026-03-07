@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/middleware/require-admin";
 import { withErrorHandler } from "@/lib/api/error-handler";
-import { updateStudySchema } from "@/lib/schemas/study";
+import { updateStudySchema, VALID_TRANSITIONS } from "@/lib/schemas/study";
 
 // GET /api/studies/[id] — get a single study
 export const GET = withErrorHandler(
@@ -58,6 +58,44 @@ export const PATCH = withErrorHandler(
 
     if (!existing) {
       return NextResponse.json({ error: "Study not found" }, { status: 404 });
+    }
+
+    // Validate status transition
+    if (data.status && data.status !== existing.status) {
+      const allowed = VALID_TRANSITIONS[existing.status] || [];
+      if (!allowed.includes(data.status)) {
+        return NextResponse.json(
+          {
+            error: `Cannot transition from ${existing.status} to ${data.status}`,
+          },
+          { status: 400 }
+        );
+      }
+
+      // Publishing requires at least one question
+      if (data.status === "ACTIVE" && existing.status === "DRAFT") {
+        const questionCount = await prisma.question.count({
+          where: { studyId: id },
+        });
+        if (questionCount === 0) {
+          return NextResponse.json(
+            { error: "Cannot publish a study with no questions" },
+            { status: 400 }
+          );
+        }
+      }
+    }
+
+    // Lock metadata edits (title/description/settings) on non-draft studies with responses
+    if (
+      existing.status !== "DRAFT" &&
+      existing._count.responses > 0 &&
+      (data.title || data.description !== undefined || data.settings)
+    ) {
+      return NextResponse.json(
+        { error: "Cannot edit study metadata while responses exist" },
+        { status: 400 }
+      );
     }
 
     const study = await prisma.study.update({

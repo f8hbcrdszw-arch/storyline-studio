@@ -92,6 +92,7 @@ model Study {
   title       String      @db.VarChar(255)
   description String?     @db.Text
   status      StudyStatus @default(DRAFT)
+  slug        String?     @unique @db.VarChar(64)
   settings    Json        @default("{}") @db.JsonB
 
   createdBy String   @map("created_by") @db.Uuid

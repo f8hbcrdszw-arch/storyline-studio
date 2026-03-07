@@ -644,17 +644,17 @@ const playerVars: YT.PlayerVars = {
   - **Complex types** (GRID, AD_MOCK_UP, OVERALL_REACTION, SELECT_FROM_SET, MULTI_AD, LIST_RANKING): specialized config UIs
   - **Video Dial** (VIDEO_DIAL): video source (upload file OR YouTube URL), prompt text, intensity vs. sentiment mode toggle, action buttons config (up to 4), multi-prompt support
   - **Numeric** (NUMERIC): min/max/step config
-- [ ] **Zod config schemas per question type** — validate config JSONB on save
-- [ ] Video source flow: upload file (presigned URL → R2) or paste YouTube URL
-- [ ] YouTube URL validation (parse `watch?v=`, `youtu.be/`, `embed/` formats), preview thumbnail/title/duration via oEmbed
-- [ ] Image upload for image-based question types
-- [ ] Mark questions as screening/segmentation questions
-- [ ] Skip logic builder: if answer to Q[x] equals [value], skip to Q[y] or terminate
+- [x] **Zod config schemas per question type** — validate config JSONB on save
+- [x] Video source flow: upload file (presigned URL → R2) or paste YouTube URL
+- [x] YouTube URL validation (parse `watch?v=`, `youtu.be/`, `embed/` formats), preview thumbnail/title/duration via oEmbed
+- [x] Image upload for image-based question types
+- [x] Mark questions as screening/segmentation questions
+- [x] Skip logic builder: if answer to Q[x] equals [value], skip to Q[y] or terminate
   - Validate referential integrity on save (target exists, is later in order)
 - [ ] Study preview mode (read-only walk-through)
-- [ ] Study lifecycle management: Draft → Active → Paused → Closed → Archived
-- [ ] Publish study → generates shareable link, sets status to `active`
-- [ ] Lock structural edits on studies with existing responses
+- [x] Study lifecycle management: Draft → Active → Paused → Closed → Archived
+- [x] Publish study → generates shareable link, sets status to `active`
+- [x] Lock structural edits on studies with existing responses
 
 **Key files:**
 - `app/(admin)/admin/studies/[id]/edit/page.tsx`

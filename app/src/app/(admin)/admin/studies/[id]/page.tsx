@@ -4,6 +4,8 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { redirect, notFound } from "next/navigation";
 import { buttonVariants } from "@/components/ui/button";
 
+import { StudyActions } from "./components/StudyActions";
+
 export default async function StudyDetailPage({
   params,
 }: {
@@ -30,6 +32,14 @@ export default async function StudyDetailPage({
 
   if (!study) notFound();
 
+  const STATUS_COLORS: Record<string, string> = {
+    ACTIVE: "bg-green-100 text-green-800",
+    DRAFT: "bg-yellow-100 text-yellow-800",
+    PAUSED: "bg-orange-100 text-orange-800",
+    CLOSED: "bg-red-100 text-red-800",
+    ARCHIVED: "bg-gray-100 text-gray-800",
+  };
+
   return (
     <div>
       <div className="flex items-center justify-between mb-8">
@@ -43,13 +53,7 @@ export default async function StudyDetailPage({
           <div className="flex items-center gap-3 mt-2">
             <span
               className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                study.status === "ACTIVE"
-                  ? "bg-green-100 text-green-800"
-                  : study.status === "DRAFT"
-                    ? "bg-yellow-100 text-yellow-800"
-                    : study.status === "CLOSED"
-                      ? "bg-red-100 text-red-800"
-                      : "bg-gray-100 text-gray-800"
+                STATUS_COLORS[study.status] || STATUS_COLORS.ARCHIVED
               }`}
             >
               {study.status}
@@ -63,12 +67,21 @@ export default async function StudyDetailPage({
         <div className="flex gap-2">
           <Link
             href={`/admin/studies/${id}/edit`}
-            className={buttonVariants()}
+            className={buttonVariants({ variant: "outline" })}
           >
             Edit Study
           </Link>
         </div>
       </div>
+
+      {/* Lifecycle actions */}
+      <StudyActions
+        studyId={study.id}
+        status={study.status}
+        slug={study.slug}
+        questionCount={study.questions.length}
+        responseCount={study._count.responses}
+      />
 
       {study.questions.length > 0 ? (
         <div className="space-y-2">

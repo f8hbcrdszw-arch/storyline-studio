@@ -1,5 +1,22 @@
 import { z } from "zod";
 
+export const STUDY_STATUSES = [
+  "DRAFT",
+  "ACTIVE",
+  "PAUSED",
+  "CLOSED",
+  "ARCHIVED",
+] as const;
+
+/** Valid status transitions: from → allowed targets */
+export const VALID_TRANSITIONS: Record<string, string[]> = {
+  DRAFT: ["ACTIVE"],
+  ACTIVE: ["PAUSED", "CLOSED"],
+  PAUSED: ["ACTIVE", "CLOSED"],
+  CLOSED: ["ARCHIVED"],
+  ARCHIVED: [],
+};
+
 export const createStudySchema = z.object({
   title: z.string().min(1).max(255),
   description: z.string().max(5000).optional(),
@@ -20,6 +37,7 @@ export const createStudySchema = z.object({
 export const updateStudySchema = z.object({
   title: z.string().min(1).max(255).optional(),
   description: z.string().max(5000).optional().nullable(),
+  status: z.enum(STUDY_STATUSES).optional(),
   settings: z
     .object({
       allowBackNavigation: z.boolean().optional(),
