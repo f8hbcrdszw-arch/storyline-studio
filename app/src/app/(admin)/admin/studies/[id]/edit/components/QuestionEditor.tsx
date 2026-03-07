@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
+import { Select } from "@/components/ui/select";
 import type { QuestionData, QuestionOption, MediaItemData } from "./StudyEditor";
 import { MediaUploader } from "./MediaUploader";
 import { SkipLogicEditor } from "./SkipLogicEditor";
@@ -189,18 +190,18 @@ export function QuestionEditor({
           <label className="text-xs font-medium text-muted-foreground block mb-1">
             Phase
           </label>
-          <select
+          <Select
             value={phase}
             onChange={(e) => setPhase(e.target.value)}
             disabled={isLocked}
-            className="rounded-md border border-input bg-background px-2 py-1.5 text-sm"
+            className="w-auto"
           >
             {PHASE_OPTIONS.map((p) => (
               <option key={p.value} value={p.value}>
                 {p.label}
               </option>
             ))}
-          </select>
+          </Select>
         </div>
 
         <label className="flex items-center gap-1.5 text-sm">
@@ -321,8 +322,8 @@ export function QuestionEditor({
       {/* Save button */}
       {!isLocked && (
         <div className="flex justify-end">
-          <Button size="sm" onClick={save} disabled={saving}>
-            {saving ? "Saving..." : "Save Changes"}
+          <Button size="sm" onClick={save} loading={saving}>
+            Save Changes
           </Button>
         </div>
       )}

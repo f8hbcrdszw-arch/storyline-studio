@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
+import { ToastProvider } from "@/components/ui/toast";
+import { LayoutGrid } from "lucide-react";
 
 export default async function AdminLayout({
   children,
@@ -16,32 +18,45 @@ export default async function AdminLayout({
     redirect("/login");
   }
 
+  const initials = user.email
+    ? user.email.slice(0, 2).toUpperCase()
+    : "??";
+
   return (
-    <div className="flex min-h-screen">
-      <aside className="w-64 shrink-0 border-r border-border bg-card p-6 flex flex-col">
-        <div className="mb-8">
-          <h2 className="font-display text-lg font-light text-foreground">
-            Storyline Studio
-          </h2>
-          <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
-            Admin
-          </p>
-        </div>
-        <nav className="space-y-1 flex-1">
-          <Link
-            href="/admin/studies"
-            className="block rounded-md px-3 py-2 text-sm font-medium text-foreground hover:bg-accent"
-          >
-            Studies
+    <div className="flex flex-col min-h-screen">
+      <header className="sticky top-0 z-40 flex items-center justify-between h-14 px-6 border-b border-border bg-background/95 backdrop-blur-sm supports-[backdrop-filter]:bg-background/80">
+        <div className="flex items-center gap-6">
+          <Link href="/admin/studies" className="flex items-center gap-2">
+            <h2 className="font-display text-lg font-light tracking-tight text-foreground">
+              Storyline Studio
+            </h2>
           </Link>
-        </nav>
-        <div className="border-t border-border pt-4 mt-4">
-          <p className="text-xs text-muted-foreground truncate">
+          <div className="h-5 w-px bg-border" />
+          <nav className="flex items-center gap-1">
+            <Link
+              href="/admin/studies"
+              className="flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium text-primary bg-primary/[0.08]"
+            >
+              <LayoutGrid className="w-4 h-4" />
+              Studies
+            </Link>
+          </nav>
+        </div>
+        <div className="flex items-center gap-3">
+          <p className="text-xs text-muted-foreground hidden sm:block">
             {user.email}
           </p>
+          <div className="w-7 h-7 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[10px] font-medium">
+            {initials}
+          </div>
         </div>
-      </aside>
-      <main className="flex-1 p-8 overflow-auto">{children}</main>
+      </header>
+      <div className="h-[2px] bg-gradient-to-r from-storyline-blue via-storyline-blue/60 to-transparent" />
+      <main className="flex-1 px-8 py-8 overflow-auto">
+        <div className="max-w-5xl mx-auto">
+          <ToastProvider>{children}</ToastProvider>
+        </div>
+      </main>
     </div>
   );
 }

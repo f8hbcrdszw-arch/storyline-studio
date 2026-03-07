@@ -37,9 +37,7 @@ export function QuestionRenderer({
     return (
       <div className="space-y-6">
         <div>
-          <h2 className="text-lg font-medium text-foreground">
-            {question.title}
-          </h2>
+          <h2>{question.title}</h2>
           {question.prompt && (
             <p className="text-sm text-muted-foreground mt-1">
               {question.prompt}
@@ -52,12 +50,10 @@ export function QuestionRenderer({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-fade-in-up">
       {/* Question header */}
       <div>
-        <h2 className="text-lg font-medium text-foreground">
-          {question.title}
-        </h2>
+        <h2>{question.title}</h2>
         {question.prompt && (
           <p className="text-sm text-muted-foreground mt-1">
             {question.prompt}
@@ -366,7 +362,7 @@ function MultiLikertQuestion({
               <button
                 key={n}
                 onClick={() => setItemValue(item.value, n)}
-                className={`w-9 h-9 rounded border text-xs font-medium transition-colors ${
+                className={`w-11 h-11 rounded-lg border text-xs font-medium transition-colors ${
                   values[item.value] === n
                     ? "border-primary bg-primary text-primary-foreground"
                     : "border-border hover:border-primary/30 text-foreground"

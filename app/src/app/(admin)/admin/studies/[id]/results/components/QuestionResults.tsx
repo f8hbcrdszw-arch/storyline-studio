@@ -131,7 +131,8 @@ export function QuestionResults({
 
   if (loading) {
     return (
-      <div className="rounded-lg border border-border p-8 text-center">
+      <div className="rounded-xl border border-border bg-card p-12 text-center shadow-sm">
+        <div className="mx-auto w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin mb-3" />
         <p className="text-sm text-muted-foreground">Loading results...</p>
       </div>
     );
@@ -139,7 +140,11 @@ export function QuestionResults({
 
   if (error) {
     return (
-      <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-8 text-center">
+      <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-8 text-center">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" className="mx-auto mb-2 text-destructive">
+          <circle cx="10" cy="10" r="8" stroke="currentColor" strokeWidth="1.5" />
+          <path d="M10 6v5M10 13.5v.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+        </svg>
         <p className="text-sm text-destructive">{error}</p>
       </div>
     );
@@ -147,7 +152,7 @@ export function QuestionResults({
 
   if (!result || result.type === "unsupported") {
     return (
-      <div className="rounded-lg border border-dashed border-border p-8 text-center">
+      <div className="rounded-xl border-2 border-dashed border-border p-12 text-center">
         <p className="text-sm text-muted-foreground">
           No responses yet for this question.
         </p>
@@ -156,13 +161,13 @@ export function QuestionResults({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       <div>
-        <h3 className="text-sm font-medium text-foreground">
+        <h3 className="font-medium text-foreground">
           Q{question.order + 1}: {question.title}
         </h3>
-        <p className="text-xs text-muted-foreground mt-0.5">
-          {question.type.replace(/_/g, " ")}
+        <p className="text-xs text-muted-foreground mt-0.5 capitalize">
+          {question.type.replace(/_/g, " ").toLowerCase()}
         </p>
       </div>
 

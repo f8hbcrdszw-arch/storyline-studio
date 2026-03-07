@@ -135,8 +135,109 @@
   * {
     @apply border-border outline-ring/50;
   }
+
+  /* Smooth transitions on interactive properties */
+  *,
+  *::before,
+  *::after {
+    transition-property: color, background-color, border-color, opacity, box-shadow, transform;
+    transition-duration: 150ms;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* Disable transitions for reduced-motion preference */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      transition-duration: 0ms !important;
+      animation-duration: 0ms !important;
+    }
+  }
+
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
     font-family: var(--font-scto), ui-sans-serif, system-ui, sans-serif;
   }
+
+  /* ── Brand typography hierarchy ─────────────────────── */
+  h1 {
+    font-family: var(--font-items), Georgia, serif;
+    @apply text-3xl font-light tracking-tight text-foreground;
+  }
+  h2 {
+    font-family: var(--font-items), Georgia, serif;
+    @apply text-xl font-normal tracking-tight text-foreground;
+  }
+  h3 {
+    @apply text-base font-medium text-foreground;
+  }
+
+  /* ── Focus rings on all form elements ───────────────── */
+  input:not([type="range"]),
+  select,
+  textarea {
+    @apply outline-none;
+    &:focus-visible {
+      box-shadow: 0 0 0 2px var(--background), 0 0 0 4px var(--ring);
+    }
+  }
+
+  /* ── Branded scrollbar (WebKit) ─────────────────────── */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--muted-foreground);
+  }
+}
+
+/* ── Utility: Phonic mono uppercase labels ────────────── */
+.label-mono {
+  font-family: var(--font-phonic), ui-monospace, monospace;
+  @apply text-[10px] uppercase tracking-[0.15em] font-normal;
+}
+
+/* ── Entrance animation for survey questions ──────────── */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.animate-fade-in-up {
+  animation: fadeInUp 0.3s ease-out;
+}
+
+/* ── Status dot indicators ──────────────────────────────── */
+.status-dot {
+  @apply inline-block w-1.5 h-1.5 rounded-full shrink-0;
+}
+.status-dot-active   { @apply bg-emerald-500; }
+.status-dot-draft    { @apply bg-amber-400; }
+.status-dot-paused   { @apply bg-amber-400; }
+.status-dot-closed   { @apply bg-red-400; }
+.status-dot-archived { @apply bg-zinc-400; }
+
+/* ── Toolbar row (divider-separated inline controls) ───── */
+.toolbar-row {
+  @apply flex items-center gap-3 py-3 border-b border-border;
+}
+
+/* ── Section label (Phonic mono, uppercase) ──────────────── */
+.section-label {
+  font-family: var(--font-phonic), ui-monospace, monospace;
+  @apply text-[10px] uppercase tracking-[0.15em] font-normal text-muted-foreground;
 }

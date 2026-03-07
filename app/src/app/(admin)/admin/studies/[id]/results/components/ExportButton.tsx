@@ -1,10 +1,13 @@
 "use client";
 
 import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { useToast } from "@/components/ui/toast";
 
 export function ExportButton({ studyId }: { studyId: string }) {
   const [exporting, setExporting] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
+  const { toast } = useToast();
 
   async function handleExport(type: "CSV" | "JSON") {
     setExporting(true);
@@ -19,20 +22,20 @@ export function ExportButton({ studyId }: { studyId: string }) {
 
       if (!res.ok) {
         const err = await res.json();
-        alert(err.error || "Export failed");
+        toast(err.error || "Export failed", "error");
         return;
       }
 
       const data = await res.json();
 
       if (data.resultUrl) {
-        // Download immediately
         window.open(data.resultUrl, "_blank");
+        toast("Export downloaded", "success");
       } else if (data.status === "PENDING") {
-        alert("Export queued. Check back shortly.");
+        toast("Export queued. Check back shortly.", "default");
       }
     } catch {
-      alert("Export failed. Please try again.");
+      toast("Export failed. Please try again.", "error");
     } finally {
       setExporting(false);
     }
@@ -40,13 +43,14 @@ export function ExportButton({ studyId }: { studyId: string }) {
 
   return (
     <div className="relative">
-      <button
+      <Button
+        variant="outline"
+        size="lg"
         onClick={() => setShowMenu(!showMenu)}
-        disabled={exporting}
-        className="rounded-md border border-input bg-background px-3 py-1.5 text-sm font-medium text-foreground hover:bg-accent disabled:opacity-50"
+        loading={exporting}
       >
-        {exporting ? "Exporting..." : "Export"}
-      </button>
+        Export
+      </Button>
 
       {showMenu && (
         <>
@@ -54,16 +58,16 @@ export function ExportButton({ studyId }: { studyId: string }) {
             className="fixed inset-0 z-10"
             onClick={() => setShowMenu(false)}
           />
-          <div className="absolute right-0 top-full mt-1 z-20 rounded-md border border-border bg-background shadow-md min-w-[140px]">
+          <div className="absolute right-0 top-full mt-1 z-20 rounded-xl border border-border bg-card shadow-lg min-w-[160px] overflow-hidden animate-in fade-in zoom-in-95 slide-in-from-top-1 duration-150">
             <button
               onClick={() => handleExport("CSV")}
-              className="block w-full text-left px-3 py-2 text-sm text-foreground hover:bg-accent"
+              className="block w-full text-left px-4 py-2.5 text-sm text-foreground hover:bg-accent/50"
             >
               Export CSV
             </button>
             <button
               onClick={() => handleExport("JSON")}
-              className="block w-full text-left px-3 py-2 text-sm text-foreground hover:bg-accent"
+              className="block w-full text-left px-4 py-2.5 text-sm text-foreground hover:bg-accent/50"
             >
               Export JSON
             </button>

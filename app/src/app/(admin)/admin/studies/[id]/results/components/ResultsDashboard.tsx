@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
+import { Select } from "@/components/ui/select";
 import { QuestionResults } from "./QuestionResults";
 
 interface QuestionInfo {
@@ -38,17 +39,17 @@ export function ResultsDashboard({
     <div className="space-y-6">
       {/* Segment filter */}
       {screeningQuestions.length > 0 && (
-        <div className="flex items-center gap-3 rounded-lg border border-border p-3">
-          <span className="text-xs font-medium text-muted-foreground">
-            Segment by:
+        <div className="toolbar-row">
+          <span className="section-label whitespace-nowrap">
+            Segment by
           </span>
-          <select
+          <Select
             value={segmentQuestionId}
             onChange={(e) => {
               setSegmentQuestionId(e.target.value);
               setSegmentValue("");
             }}
-            className="rounded-md border border-input bg-background px-2 py-1 text-sm"
+            className="w-auto"
           >
             <option value="">All respondents</option>
             {screeningQuestions.map((q) => (
@@ -56,13 +57,13 @@ export function ResultsDashboard({
                 Q{q.order + 1}: {q.title}
               </option>
             ))}
-          </select>
+          </Select>
 
           {segmentQuestion && segmentQuestion.options.length > 0 && (
-            <select
+            <Select
               value={segmentValue}
               onChange={(e) => setSegmentValue(e.target.value)}
-              className="rounded-md border border-input bg-background px-2 py-1 text-sm"
+              className="w-auto"
             >
               <option value="">Select value...</option>
               {segmentQuestion.options.map((opt) => (
@@ -70,37 +71,37 @@ export function ResultsDashboard({
                   {opt.label}
                 </option>
               ))}
-            </select>
+            </Select>
           )}
         </div>
       )}
 
       {/* Question list + results */}
-      <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6">
         {/* Question list sidebar */}
-        <div className="space-y-1">
-          <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
-            Questions
-          </h3>
-          {questions.map((q) => (
-            <button
-              key={q.id}
-              onClick={() => setSelectedQuestionId(q.id)}
-              className={`w-full text-left rounded-lg border p-2 transition-colors text-sm ${
-                selectedQuestionId === q.id
-                  ? "border-primary bg-primary/5"
-                  : "border-border hover:border-primary/30"
-              }`}
-            >
-              <span className="text-muted-foreground mr-1.5">
-                Q{q.order + 1}
-              </span>
-              <span className="text-foreground">{q.title}</span>
-              <p className="text-[10px] text-muted-foreground mt-0.5">
-                {q.type.replace(/_/g, " ")}
-              </p>
-            </button>
-          ))}
+        <div>
+          <p className="section-label mb-3">Questions</p>
+          <div className="space-y-px">
+            {questions.map((q) => (
+              <button
+                key={q.id}
+                onClick={() => setSelectedQuestionId(q.id)}
+                className={`w-full text-left px-3 py-2 text-sm border-l-2 ${
+                  selectedQuestionId === q.id
+                    ? "border-primary bg-primary/5 text-foreground"
+                    : "border-transparent hover:bg-accent/30 text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <span className="text-xs mr-1.5 tabular-nums">
+                  Q{q.order + 1}
+                </span>
+                <span className="font-medium">{q.title}</span>
+                <p className="text-[10px] text-muted-foreground mt-0.5 capitalize">
+                  {q.type.replace(/_/g, " ").toLowerCase()}
+                </p>
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Results panel */}
@@ -117,7 +118,7 @@ export function ResultsDashboard({
               }
             />
           ) : (
-            <div className="rounded-lg border border-dashed border-border p-8 text-center">
+            <div className="rounded-xl border-2 border-dashed border-border p-12 text-center">
               <p className="text-sm text-muted-foreground">
                 Select a question to view results
               </p>

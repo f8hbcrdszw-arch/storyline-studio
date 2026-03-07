@@ -258,9 +258,7 @@ export function SurveyShell({
     return (
       <SurveyLayout>
         <div className="text-center">
-          <h1 className="text-xl font-medium text-foreground mb-2">
-            Survey Unavailable
-          </h1>
+          <h1 className="mb-2">Survey Unavailable</h1>
           <p className="text-sm text-muted-foreground">
             This survey could not be loaded. Please try again later.
           </p>
@@ -274,9 +272,7 @@ export function SurveyShell({
       <SurveyLayout>
         <div className="max-w-lg w-full mx-auto space-y-6">
           <div className="text-center">
-            <h1 className="text-xl font-medium text-foreground">
-              {studyTitle}
-            </h1>
+            <h1>{studyTitle}</h1>
             <p className="text-sm text-muted-foreground mt-2">
               Thank you for participating in this study. Your responses are
               anonymous and will be used for research purposes only.
@@ -321,9 +317,7 @@ export function SurveyShell({
     return (
       <SurveyLayout>
         <div className="text-center max-w-md mx-auto">
-          <h1 className="text-xl font-medium text-foreground mb-2">
-            Thank You
-          </h1>
+          <h1 className="mb-2">Thank You</h1>
           <p className="text-sm text-muted-foreground">
             Based on your responses, you do not qualify for this particular
             study. We appreciate your time.
@@ -339,9 +333,7 @@ export function SurveyShell({
     return (
       <SurveyLayout>
         <div className="text-center max-w-md mx-auto space-y-4">
-          <h1 className="text-xl font-medium text-foreground">
-            Thank You!
-          </h1>
+          <h1>Thank You!</h1>
           <p className="text-sm text-muted-foreground">
             Your responses have been recorded. Thank you for participating in
             this study.
@@ -414,8 +406,8 @@ function SurveyLayout({ children }: { children: React.ReactNode }) {
         {children}
       </div>
       <footer className="py-4 text-center">
-        <p className="text-[10px] text-muted-foreground">
-          Powered by Storyline Studio
+        <p className="label-mono text-muted-foreground/50">
+          Powered by Storyline
         </p>
       </footer>
     </div>

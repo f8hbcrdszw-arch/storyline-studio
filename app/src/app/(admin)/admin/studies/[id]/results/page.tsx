@@ -5,6 +5,7 @@ import { redirect, notFound } from "next/navigation";
 import { getStudyOverviewStats } from "@/lib/aggregation";
 import { ResultsDashboard } from "./components/ResultsDashboard";
 import { ExportButton } from "./components/ExportButton";
+import { ArrowLeft } from "lucide-react";
 
 export default async function StudyResultsPage({
   params,
@@ -48,31 +49,28 @@ export default async function StudyResultsPage({
   const stats = await getStudyOverviewStats(id);
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-6">
+    <div className="max-w-5xl">
+      <div className="flex items-center justify-between mb-8 animate-in fade-in slide-in-from-bottom-1 duration-300">
         <div>
-          <div className="flex items-center gap-2">
-            <Link
-              href={`/admin/studies/${id}`}
-              className="text-muted-foreground hover:text-foreground text-sm"
-            >
-              &larr; Back to study
-            </Link>
-          </div>
-          <h1 className="text-xl font-medium text-foreground mt-1">
-            {study.title} — Results
-          </h1>
+          <Link
+            href={`/admin/studies/${id}`}
+            className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            Back to study
+          </Link>
+          <h1 className="mt-1">{study.title} — Results</h1>
         </div>
         <ExportButton studyId={id} />
       </div>
 
-      {/* Stats overview */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-        <StatCard label="Total Responses" value={stats.totalResponses} />
-        <StatCard label="Completed" value={stats.completed} suffix={`(${stats.completionRate}%)`} />
-        <StatCard label="Screened Out" value={stats.screenedOut} suffix={`(${stats.screenOutRate}%)`} />
-        <StatCard
-          label="Avg. Time"
+      {/* Inline stats row */}
+      <div className="toolbar-row mb-8 animate-in fade-in duration-300 delay-75">
+        <StatInline label={stats.totalResponses === 1 ? "response" : "responses"} value={stats.totalResponses} />
+        <StatInline label="completed" value={stats.completed} suffix={`${stats.completionRate}%`} accent="emerald" />
+        <StatInline label="screened out" value={stats.screenedOut} suffix={`${stats.screenOutRate}%`} accent="amber" />
+        <StatInline
+          label="avg time"
           value={
             stats.avgCompletionTimeSecs
               ? formatDuration(stats.avgCompletionTimeSecs)
@@ -82,30 +80,42 @@ export default async function StudyResultsPage({
       </div>
 
       {/* Per-question results */}
-      <ResultsDashboard studyId={id} questions={study.questions} />
+      <div className="animate-in fade-in slide-in-from-bottom-1 duration-300 delay-150">
+        <ResultsDashboard studyId={id} questions={study.questions} />
+      </div>
     </div>
   );
 }
 
-function StatCard({
+function StatInline({
   label,
   value,
   suffix,
+  accent,
 }: {
   label: string;
   value: string | number;
   suffix?: string;
+  accent?: "emerald" | "amber";
 }) {
   return (
-    <div className="rounded-lg border border-border p-4">
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="text-2xl font-medium text-foreground mt-1">
-        {value}
-        {suffix && (
-          <span className="text-sm text-muted-foreground ml-1">{suffix}</span>
-        )}
-      </p>
-    </div>
+    <span className="inline-flex items-baseline gap-1.5">
+      <span className="text-xl font-medium text-foreground tabular-nums">{value}</span>
+      <span className="text-sm text-muted-foreground">{label}</span>
+      {suffix && (
+        <span
+          className={`text-xs font-medium ${
+            accent === "emerald"
+              ? "text-emerald-600"
+              : accent === "amber"
+                ? "text-amber-600"
+                : "text-muted-foreground"
+          }`}
+        >
+          {suffix}
+        </span>
+      )}
+    </span>
   );
 }
 

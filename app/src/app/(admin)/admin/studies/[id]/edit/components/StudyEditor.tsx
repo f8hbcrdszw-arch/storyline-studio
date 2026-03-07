@@ -195,9 +195,7 @@ export function StudyEditor({
               &larr; Back
             </Link>
           </div>
-          <h1 className="text-xl font-medium text-foreground mt-1">
-            {study.title}
-          </h1>
+          <h1 className="mt-1">{study.title}</h1>
           {isLocked && (
             <p className="text-xs text-amber-600 mt-1">
               This study has responses — structural edits are locked
@@ -273,7 +271,7 @@ export function StudyEditor({
         </DndContext>
 
         {filteredQuestions.length === 0 && (
-          <div className="rounded-lg border border-dashed border-border p-8 text-center">
+          <div className="rounded-xl border-2 border-dashed border-border p-12 text-center">
             <p className="text-sm text-muted-foreground">
               {activePhase === "ALL"
                 ? "No questions yet. Add your first question below."
