@@ -719,21 +719,21 @@ const playerVars: YT.PlayerVars = {
 
 **Goal:** The core differentiator — respondents watch a video while providing real-time slider feedback.
 
-- [ ] `VideoPlayerAdapter` unified interface wrapping both HTML5 video and YouTube IFrame API:
+- [x] `VideoPlayerAdapter` unified interface wrapping both HTML5 video and YouTube IFrame API:
   - `play()`, `pause()`, `getCurrentTime()`, `onStateChange`, `onBuffering`
   - HTML5: `requestVideoFrameCallback` with `requestAnimationFrame` fallback
   - YouTube: `player.getCurrentTime()` polled via `setInterval(250)`
-- [ ] `Html5VideoPlayer.tsx`:
+- [x] `Html5VideoPlayer.tsx`:
   - Custom controls overlay (no native controls)
   - `preload="auto"` with `Accept-Ranges` progressive download (NOT full preload)
   - Monitor `buffered` ranges; pause dial if buffer falls behind
   - `playsinline` attribute for iOS
-- [ ] `YouTubeVideoPlayer.tsx`:
+- [x] `YouTubeVideoPlayer.tsx`:
   - Use `youtube-nocookie.com` domain
   - Sandbox iframe: `allow-scripts allow-same-origin allow-presentation`
   - Seek detection via `onStateChange` — if time jump detected, seek back
   - All playerVars configured per research (controls:0, disablekb:1, fs:0, etc.)
-- [ ] **Dial slider** (`DialSlider.tsx`):
+- [x] **Dial slider** (`DialSlider.tsx`):
   - Horizontal slider (0-100) with red→yellow→green gradient track
   - Two modes: `sentiment` (Negative ← → Positive) and `intensity` (0 → 100)
   - Tooltip showing current value above thumb
@@ -741,20 +741,20 @@ const playerVars: YT.PlayerVars = {
   - Track `slider_interacted` boolean
   - Touch-friendly: larger hit target for mobile/tablet (min 48px thumb)
   - Numeric labels for color-blind accessibility
-- [ ] **Click-to-play overlay** before video starts
-- [ ] **Per-second capture** via `VideoTimeSampler` class (RVFC → RAF fallback)
+- [x] **Click-to-play overlay** before video starts
+- [x] **Per-second capture** via `VideoTimeSampler` class (RVFC → RAF fallback)
   - Tied to video time, pauses on buffer
   - Store as `Record<number, number>` in React state
-- [ ] **Lightbulb button**: tap logs `video.currentTime`, glow animation confirms
-- [ ] **Configurable "Take Action" buttons**: up to 4 custom buttons, each tap logs timestamped event
-- [ ] **Inactivity warning**: slider untouched for 3 seconds → flash warning banner
-- [ ] Video plays to completion — no seeking, no pause
-- [ ] On video end: optional annotation prompt (text input)
-- [ ] **Dual-write submission**: save `Answer.value` JSONB AND insert `DialDataPoint` rows
+- [x] **Lightbulb button**: tap logs `video.currentTime`, glow animation confirms
+- [x] **Configurable "Take Action" buttons**: up to 4 custom buttons, each tap logs timestamped event
+- [x] **Inactivity warning**: slider untouched for 3 seconds → flash warning banner
+- [x] Video plays to completion — no seeking, no pause
+- [x] On video end: optional annotation prompt (text input)
+- [x] **Dual-write submission**: save `Answer.value` JSONB AND insert `DialDataPoint` rows
 - [ ] Multi-prompt support: multiple prompt segments within one video
-- [ ] Handle video loading failures (retry with exponential backoff, error message)
-- [ ] Landscape-optimized layout
-- [ ] **Signed URL refresh**: detect `403` on media load → request fresh URL from `/api/media/[questionId]`
+- [x] Handle video loading failures (retry with exponential backoff, error message)
+- [x] Landscape-optimized layout
+- [x] **Signed URL refresh**: detect `403` on media load → request fresh URL from `/api/media/[questionId]`
 
 **Key files:**
 - `app/(survey)/survey/[id]/components/question-types/VideoDial.tsx`
