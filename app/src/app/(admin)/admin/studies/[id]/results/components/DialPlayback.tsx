@@ -185,7 +185,7 @@ export function DialPlayback({
     const tick = () => {
       // Get current time from the active player
       let time = 0;
-      if (isYouTube && ytPlayerRef.current) {
+      if (isYouTube && ytPlayerRef.current && typeof ytPlayerRef.current.getCurrentTime === "function") {
         time = ytPlayerRef.current.getCurrentTime() ?? 0;
       } else if (videoRef.current) {
         time = videoRef.current.currentTime;
