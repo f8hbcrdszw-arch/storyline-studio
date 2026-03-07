@@ -846,45 +846,37 @@ const playerVars: YT.PlayerVars = {
 
 **Goal:** Production-quality UX, performance, and operational readiness.
 
-- [ ] Error boundaries and error states throughout
-- [ ] Loading skeletons for all data-fetching views
-- [ ] Study duplication (clone an existing study)
-- [ ] Study archiving (soft delete)
-- [ ] Respondent quotas (close study after N completes)
-- [ ] Accessibility audit (WCAG 2.1 AA)
-  - Full keyboard navigation for all question types
-  - Screen reader ARIA labels on custom controls
-  - 4.5:1 contrast ratio for text, 3:1 for interactive elements
-- [ ] Cross-browser testing (Chrome, Safari, Firefox, Edge, mobile Safari, Chrome Android)
-- [ ] Performance optimization:
-  - Verify route group isolation (survey bundle < 80KB gzipped)
-  - Lazy loading for results charts
-  - Pagination for large response sets
-  - `next/font` for self-hosted fonts (no external font requests)
-  - Survey data caching (60-second TTL on study structure)
-- [ ] Admin user management (invite team members)
-- [ ] Study-level access control (OWNER, ADMIN, VIEWER roles)
-- [ ] Audit logging for admin actions
-- [ ] Automated data retention cleanup (scheduled job)
-- [ ] `npm audit` in CI/CD pipeline
-- [ ] Dependabot/Renovate for automated dependency updates
+- [x] Error boundaries and error states throughout
+- [x] Loading skeletons for all data-fetching views
+- [x] Study duplication (clone an existing study)
+- [x] Study archiving (soft delete — via lifecycle CLOSED → ARCHIVED)
+- [x] Respondent quotas (close study after N completes via settings.maxResponses)
+- [ ] Accessibility audit (WCAG 2.1 AA) — deferred to post-launch
+- [ ] Cross-browser testing — deferred to post-launch
+- [ ] Performance optimization — deferred to post-launch
+- [ ] Admin user management (invite team members) — deferred to post-launch
+- [ ] Study-level access control (OWNER, ADMIN, VIEWER roles) — deferred to post-launch
+- [ ] Audit logging for admin actions — deferred to post-launch
+- [ ] Automated data retention cleanup — deferred to post-launch
+- [ ] `npm audit` in CI/CD pipeline — deferred to post-launch
+- [ ] Dependabot/Renovate for automated dependency updates — deferred to post-launch
 
 ## Acceptance Criteria
 
 ### Functional Requirements
 
-- [ ] Admin can create a study with questions across 4 phases
-- [ ] Admin can add all 17 question types plus VIDEO_DIAL
-- [ ] Admin can upload video files OR use YouTube URLs for dial testing
-- [ ] Admin can publish a study and get a shareable link
-- [ ] Respondent can access the survey link and complete it without authentication
-- [ ] Respondent can answer all question types including video dial testing
-- [ ] Video dial captures per-second slider values and lightbulb timestamps
-- [ ] Screening questions can terminate unqualified respondents (server-side validation)
-- [ ] Results dashboard shows aggregated data for all question types
-- [ ] Video dial results show animated line chart overlaid on video, segmentable by demographics
-- [ ] CSV export produces analysis-ready data with proper column mapping
-- [ ] Multiple respondents can take the survey simultaneously without interference
+- [x] Admin can create a study with questions across 4 phases
+- [x] Admin can add all 17 question types plus VIDEO_DIAL
+- [x] Admin can upload video files OR use YouTube URLs for dial testing
+- [x] Admin can publish a study and get a shareable link
+- [x] Respondent can access the survey link and complete it without authentication
+- [x] Respondent can answer all question types including video dial testing
+- [x] Video dial captures per-second slider values and lightbulb timestamps
+- [x] Screening questions can terminate unqualified respondents (server-side validation)
+- [x] Results dashboard shows aggregated data for all question types
+- [x] Video dial results show animated line chart overlaid on video, segmentable by demographics
+- [x] CSV export produces analysis-ready data with proper column mapping
+- [x] Multiple respondents can take the survey simultaneously without interference
 
 ### Non-Functional Requirements
 
