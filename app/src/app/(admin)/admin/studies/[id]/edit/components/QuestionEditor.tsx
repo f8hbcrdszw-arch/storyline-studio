@@ -639,6 +639,45 @@ function VideoDialConfig({
         )}
       </div>
 
+      {/* Post-video open-end annotation */}
+      <div>
+        <label className="text-xs font-medium text-muted-foreground block mb-1">
+          Post-Video Open-End
+        </label>
+        <div className="space-y-2">
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={config.showAnnotation !== false}
+              onChange={(e) => onUpdate("showAnnotation", e.target.checked)}
+              disabled={isLocked}
+              className="rounded border-input"
+            />
+            Show open-ended text field after video
+          </label>
+          {config.showAnnotation !== false && (
+            <>
+              <input
+                type="text"
+                value={(config.annotationPrompt as string) || ""}
+                onChange={(e) => onUpdate("annotationPrompt", e.target.value)}
+                disabled={isLocked}
+                placeholder="Any additional thoughts? (optional)"
+                className="w-full rounded-md border border-input bg-background px-2 py-1 text-sm"
+              />
+              <input
+                type="text"
+                value={(config.annotationPlaceholder as string) || ""}
+                onChange={(e) => onUpdate("annotationPlaceholder", e.target.value)}
+                disabled={isLocked}
+                placeholder="Share your thoughts about the video..."
+                className="w-full rounded-md border border-input bg-background px-2 py-1 text-xs text-muted-foreground"
+              />
+            </>
+          )}
+        </div>
+      </div>
+
       <p className="text-[10px] text-muted-foreground">
         Video/media is configured in the Media section after saving.
       </p>

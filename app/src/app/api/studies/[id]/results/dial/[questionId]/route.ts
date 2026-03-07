@@ -46,6 +46,29 @@ export const GET = withErrorHandler(
       aggregateLightbulbs(questionId, id),
     ]);
 
-    return NextResponse.json({ dialData, lightbulbs });
+    // Fetch annotations from answer values
+    const answers = await prisma.answer.findMany({
+      where: {
+        questionId,
+        response: { studyId: id, status: "COMPLETED" },
+      },
+      select: { value: true, answeredAt: true },
+      orderBy: { answeredAt: "desc" },
+    });
+
+    const annotations: { text: string; answeredAt: Date }[] = [];
+    for (const a of answers) {
+      const val = a.value as Record<string, unknown>;
+      const texts = val.annotations as string[] | undefined;
+      if (texts?.length) {
+        for (const text of texts) {
+          if (text.trim()) {
+            annotations.push({ text: text.trim(), answeredAt: a.answeredAt });
+          }
+        }
+      }
+    }
+
+    return NextResponse.json({ dialData, lightbulbs, annotations });
   }
 );

@@ -459,7 +459,7 @@ function GridResultView({ data }: { data: GridResult }) {
                     key={col}
                     className="p-2 text-center border-b border-border"
                     style={{
-                      backgroundColor: `hsl(var(--primary) / ${pct / 100 * 0.3})`,
+                      backgroundColor: `color-mix(in oklch, var(--primary) ${Math.round(pct * 0.3)}%, transparent)`,
                     }}
                   >
                     <span className="text-foreground">{count}</span>
@@ -482,7 +482,11 @@ function GridResultView({ data }: { data: GridResult }) {
 function DialResultView({
   data,
 }: {
-  data: { dialData: DialAggregation[]; lightbulbs: Record<number, number> };
+  data: {
+    dialData: DialAggregation[];
+    lightbulbs: Record<number, number>;
+    annotations?: { text: string; answeredAt: string }[];
+  };
 }) {
   if (data.dialData.length === 0) {
     return (
@@ -508,10 +512,53 @@ function DialResultView({
   const yScale = (val: number) =>
     padding.top + chartH - (val / 100) * chartH;
 
-  // Build mean line path
-  const meanPath = data.dialData
-    .map((d, i) => `${i === 0 ? "M" : "L"}${xScale(d.second)},${yScale(d.mean)}`)
-    .join(" ");
+  // Dial color scale — matches the survey slider gradient
+  // red(0) → orange(25) → yellow(50) → lime(75) → green(100)
+  function dialColor(val: number): string {
+    if (val <= 25) {
+      const t = val / 25;
+      return lerpColor([239, 68, 68], [249, 115, 22], t);
+    } else if (val <= 50) {
+      const t = (val - 25) / 25;
+      return lerpColor([249, 115, 22], [234, 179, 8], t);
+    } else if (val <= 75) {
+      const t = (val - 50) / 25;
+      return lerpColor([234, 179, 8], [132, 204, 22], t);
+    } else {
+      const t = (val - 75) / 25;
+      return lerpColor([132, 204, 22], [34, 197, 94], t);
+    }
+  }
+
+  function lerpColor(a: number[], b: number[], t: number): string {
+    const r = Math.round(a[0] + (b[0] - a[0]) * t);
+    const g = Math.round(a[1] + (b[1] - a[1]) * t);
+    const bl = Math.round(a[2] + (b[2] - a[2]) * t);
+    return `rgb(${r},${g},${bl})`;
+  }
+
+  // Build color-coded line segments for the mean line
+  const meanSegments: { x1: number; y1: number; x2: number; y2: number; color: string }[] = [];
+  for (let i = 0; i < data.dialData.length - 1; i++) {
+    const d0 = data.dialData[i];
+    const d1 = data.dialData[i + 1];
+    const avgVal = (d0.mean + d1.mean) / 2;
+    meanSegments.push({
+      x1: xScale(d0.second),
+      y1: yScale(d0.mean),
+      x2: xScale(d1.second),
+      y2: yScale(d1.mean),
+      color: dialColor(avgVal),
+    });
+  }
+
+  // Build fill area path under mean line
+  const fillPath =
+    data.dialData.length > 0
+      ? `M${xScale(data.dialData[0].second)},${yScale(0)} ` +
+        data.dialData.map((d) => `L${xScale(d.second)},${yScale(d.mean)}`).join(" ") +
+        ` L${xScale(data.dialData[data.dialData.length - 1].second)},${yScale(0)} Z`
+      : "";
 
   // Build median line path
   const medianPath = data.dialData
@@ -537,16 +584,18 @@ function DialResultView({
     return `${m}:${String(s).padStart(2, "0")}`;
   }
 
+  // Gradient ID for fill area
+  const gradientId = "dial-fill-gradient";
+
   return (
     <div className="space-y-3">
-      <div className="flex items-center gap-4 text-xs text-muted-foreground">
+      <div className="flex items-center gap-4 text-xs text-muted-foreground flex-wrap">
         <span>n = {respondentCount}</span>
         <span className="flex items-center gap-1">
-          <span className="inline-block w-3 h-0.5 bg-primary rounded" /> Mean
+          <span className="inline-block w-6 h-1.5 rounded" style={{ background: "linear-gradient(to right, #ef4444, #eab308, #22c55e)" }} /> Mean
         </span>
         <span className="flex items-center gap-1">
-          <span className="inline-block w-3 h-0.5 bg-primary/40 rounded" />{" "}
-          Median
+          <span className="inline-block w-3 h-0.5 rounded" style={{ backgroundColor: "#9ca3af" }} /> Median
         </span>
         {lightbulbEntries.length > 0 && (
           <span className="flex items-center gap-1">
@@ -562,6 +611,17 @@ function DialResultView({
           className="w-full"
           style={{ minWidth: "400px" }}
         >
+          <defs>
+            {/* Vertical gradient matching dial colors for the fill area */}
+            <linearGradient id={gradientId} x1="0" y1="1" x2="0" y2="0">
+              <stop offset="0%" stopColor="#ef4444" stopOpacity={0.08} />
+              <stop offset="25%" stopColor="#f97316" stopOpacity={0.08} />
+              <stop offset="50%" stopColor="#eab308" stopOpacity={0.08} />
+              <stop offset="75%" stopColor="#84cc16" stopOpacity={0.10} />
+              <stop offset="100%" stopColor="#22c55e" stopOpacity={0.12} />
+            </linearGradient>
+          </defs>
+
           {/* Grid lines */}
           {[0, 25, 50, 75, 100].map((val) => (
             <g key={val}>
@@ -607,25 +667,38 @@ function DialResultView({
             x2={width - padding.right}
             y2={yScale(50)}
             stroke="currentColor"
-            strokeOpacity={0.25}
+            strokeOpacity={0.2}
             strokeDasharray="4 2"
           />
 
-          {/* Median line */}
+          {/* Fill area under mean line */}
+          {fillPath && (
+            <path d={fillPath} fill={`url(#${gradientId})`} />
+          )}
+
+          {/* Median line — subtle gray */}
           <path
             d={medianPath}
             fill="none"
-            stroke="hsl(var(--primary) / 0.4)"
-            strokeWidth={1.5}
+            stroke="#9ca3af"
+            strokeOpacity={0.5}
+            strokeWidth={1}
+            strokeDasharray="3 2"
           />
 
-          {/* Mean line */}
-          <path
-            d={meanPath}
-            fill="none"
-            stroke="hsl(var(--primary))"
-            strokeWidth={2}
-          />
+          {/* Mean line — color-coded segments matching dial gradient */}
+          {meanSegments.map((seg, i) => (
+            <line
+              key={i}
+              x1={seg.x1}
+              y1={seg.y1}
+              x2={seg.x2}
+              y2={seg.y2}
+              stroke={seg.color}
+              strokeWidth={2.5}
+              strokeLinecap="round"
+            />
+          ))}
 
           {/* Lightbulb markers */}
           {lightbulbEntries.map((l) => (
@@ -640,6 +713,25 @@ function DialResultView({
           ))}
         </svg>
       </div>
+
+      {/* Open-ended annotations */}
+      {data.annotations && data.annotations.length > 0 && (
+        <div>
+          <p className="text-xs font-medium text-muted-foreground mb-1.5">
+            Open-Ended Responses ({data.annotations.length})
+          </p>
+          <div className="space-y-1.5 max-h-64 overflow-y-auto">
+            {data.annotations.map((a, i) => (
+              <div
+                key={i}
+                className="rounded border border-border p-2.5 text-sm text-foreground"
+              >
+                {a.text}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -268,21 +268,23 @@ export function VideoDial({ question, onSubmit, loading }: VideoDialProps) {
         </div>
       )}
 
-      {/* Post-video annotation */}
+      {/* Post-video annotation + submit */}
       {videoEnded && (
         <div className="space-y-3">
-          <div>
-            <label className="text-sm font-medium text-foreground block mb-1">
-              Any additional thoughts? (optional)
-            </label>
-            <textarea
-              value={annotation}
-              onChange={(e) => setAnnotation(e.target.value)}
-              rows={3}
-              className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm resize-none"
-              placeholder="Share your thoughts about the video..."
-            />
-          </div>
+          {config.showAnnotation !== false && (
+            <div>
+              <label className="text-sm font-medium text-foreground block mb-1">
+                {(config.annotationPrompt as string) || "Any additional thoughts? (optional)"}
+              </label>
+              <textarea
+                value={annotation}
+                onChange={(e) => setAnnotation(e.target.value)}
+                rows={3}
+                className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm resize-none"
+                placeholder={(config.annotationPlaceholder as string) || "Share your thoughts about the video..."}
+              />
+            </div>
+          )}
 
           <div className="flex justify-end">
             <Button onClick={handleSubmit} disabled={loading}>

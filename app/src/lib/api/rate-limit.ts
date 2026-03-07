@@ -73,7 +73,7 @@ export function rateLimit(
  * - 5 new respondent IDs per IP per hour
  */
 export const RATE_LIMITS = {
-  createResponse: { limit: 1, windowSecs: 60 },
+  createResponse: { limit: 10, windowSecs: 60 },
   submitAnswer: { limit: 60, windowSecs: 60 },
   createRespondent: { limit: 5, windowSecs: 3600 },
   adminApi: { limit: 120, windowSecs: 60 },
