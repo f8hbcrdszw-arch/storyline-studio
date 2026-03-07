@@ -568,11 +568,13 @@ export function DialPlayback({
           </button>
         )}
         {isYouTube && (
-          <span
-            className="text-[10px] text-muted-foreground/60 cursor-help"
-            title="Video export is not available for YouTube videos due to cross-origin restrictions"
-          >
-            Export N/A
+          <span className="relative group">
+            <span className="text-xs px-2.5 py-1.5 rounded-md border border-border bg-muted/50 text-muted-foreground cursor-help">
+              Export N/A
+            </span>
+            <span className="absolute bottom-full right-0 mb-2 w-56 rounded-md bg-foreground text-background text-[11px] leading-snug p-2 opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-10">
+              Export is only available for uploaded videos. YouTube videos can&apos;t be exported due to browser restrictions.
+            </span>
           </span>
         )}
       </div>
