@@ -508,22 +508,51 @@ function DialResultView({
     const svg = svgRef.current;
     if (!svg) return;
 
+    // Clone SVG and inline computed styles so it renders standalone
+    const clone = svg.cloneNode(true) as SVGSVGElement;
+    const scale = 2;
+    const svgW = 700;
+    const svgH = parseInt(clone.getAttribute("viewBox")?.split(" ")[3] || "200");
+
+    // Set explicit dimensions for the image
+    clone.setAttribute("width", String(svgW));
+    clone.setAttribute("height", String(svgH));
+
+    // Resolve CSS classes to inline styles — find all text/elements using className
+    const computedColor = getComputedStyle(document.documentElement).getPropertyValue("color").trim() || "#000";
+    const mutedFg = getComputedStyle(svg).getPropertyValue("--muted-foreground")
+      ? `oklch(${getComputedStyle(document.documentElement).getPropertyValue("--muted-foreground")})`
+      : "#6b7280";
+
+    // Inline all fill-muted-foreground classes and currentColor references
+    clone.querySelectorAll("[class]").forEach((el) => {
+      const classes = el.getAttribute("class") || "";
+      if (classes.includes("fill-muted-foreground")) {
+        (el as SVGElement).style.fill = "#6b7280";
+        el.removeAttribute("class");
+      }
+    });
+
+    // Replace currentColor strokes with gray
+    clone.querySelectorAll("line[stroke='currentColor']").forEach((el) => {
+      el.setAttribute("stroke", "#d1d5db");
+    });
+
     const serializer = new XMLSerializer();
-    const svgStr = serializer.serializeToString(svg);
+    const svgStr = serializer.serializeToString(clone);
     const svgBlob = new Blob([svgStr], { type: "image/svg+xml;charset=utf-8" });
     const url = URL.createObjectURL(svgBlob);
 
     const img = new Image();
     img.onload = () => {
-      const scale = 2;
       const canvas = document.createElement("canvas");
-      canvas.width = img.width * scale;
-      canvas.height = img.height * scale;
+      canvas.width = svgW * scale;
+      canvas.height = svgH * scale;
       const ctx = canvas.getContext("2d")!;
       ctx.scale(scale, scale);
       ctx.fillStyle = "#ffffff";
-      ctx.fillRect(0, 0, img.width, img.height);
-      ctx.drawImage(img, 0, 0);
+      ctx.fillRect(0, 0, svgW, svgH);
+      ctx.drawImage(img, 0, 0, svgW, svgH);
       URL.revokeObjectURL(url);
 
       const a = document.createElement("a");
