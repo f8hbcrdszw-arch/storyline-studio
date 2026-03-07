@@ -65,6 +65,14 @@ export default async function StudyDetailPage({
           </div>
         </div>
         <div className="flex gap-2">
+          {study._count.responses > 0 && (
+            <Link
+              href={`/admin/studies/${id}/results`}
+              className={buttonVariants({ variant: "outline" })}
+            >
+              View Results
+            </Link>
+          )}
           <Link
             href={`/admin/studies/${id}/edit`}
             className={buttonVariants({ variant: "outline" })}
