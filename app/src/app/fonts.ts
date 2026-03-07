@@ -23,7 +23,7 @@ export const sctoGrotesk = localFont({
       style: "italic",
     },
   ],
-  variable: "--font-sans",
+  variable: "--font-scto",
   display: "swap",
 });
 
@@ -40,7 +40,7 @@ export const items = localFont({
       style: "normal",
     },
   ],
-  variable: "--font-display",
+  variable: "--font-items",
   display: "optional",
 });
 
@@ -52,6 +52,6 @@ export const phonicMono = localFont({
       style: "normal",
     },
   ],
-  variable: "--font-mono",
+  variable: "--font-phonic",
   display: "optional",
 });

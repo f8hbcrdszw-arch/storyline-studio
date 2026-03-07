@@ -55,6 +55,12 @@ interface DialAggregation {
   n: number;
 }
 
+interface DialSummary {
+  responseCount: number;
+  totalDataPoints: number;
+  durationSecs: number;
+}
+
 type QuestionResultData =
   | { type: "list"; data: ListResult[] }
   | { type: "likert"; data: LikertResult }
@@ -63,6 +69,7 @@ type QuestionResultData =
   | { type: "ranking"; data: RankingResult }
   | { type: "grid"; data: GridResult }
   | { type: "ab"; data: ListResult[] }
+  | { type: "dial"; data: DialSummary }
   | { type: "unsupported"; data: null };
 
 export function QuestionResults({

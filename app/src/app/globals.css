@@ -7,9 +7,9 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-sans);
-  --font-display: var(--font-display);
-  --font-mono: var(--font-mono);
+  --font-sans: var(--font-scto), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-items), Georgia, serif;
+  --font-mono: var(--font-phonic), ui-monospace, monospace;
 
   /* Brand colors */
   --color-cream: oklch(0.963 0.005 90);
@@ -137,8 +137,6 @@
   }
   body {
     @apply bg-background text-foreground;
-  }
-  html {
-    @apply font-sans;
+    font-family: var(--font-scto), ui-sans-serif, system-ui, sans-serif;
   }
 }

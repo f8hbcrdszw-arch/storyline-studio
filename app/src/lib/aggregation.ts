@@ -102,6 +102,12 @@ export interface GridResult {
   n: number;
 }
 
+export interface DialResult {
+  responseCount: number;
+  totalDataPoints: number;
+  durationSecs: number;
+}
+
 export type QuestionResult =
   | { type: "list"; data: ListResult[] }
   | { type: "likert"; data: LikertResult }
@@ -110,6 +116,7 @@ export type QuestionResult =
   | { type: "ranking"; data: RankingResult }
   | { type: "grid"; data: GridResult }
   | { type: "ab"; data: ListResult[] }
+  | { type: "dial"; data: DialResult }
   | { type: "unsupported"; data: null };
 
 export async function aggregateQuestion(
@@ -299,6 +306,29 @@ export async function aggregateQuestion(
         }))
         .sort((a, b) => b.count - a.count);
       return { type: "ab", data };
+    }
+
+    case "VIDEO_DIAL": {
+      // Dial data is aggregated separately via aggregateDialData()
+      // Here we just return summary stats so the results page knows there's data
+      const dialPoints = await prisma.dialDataPoint.findMany({
+        where: {
+          questionId,
+          response: { studyId, status: "COMPLETED" },
+        },
+        select: { second: true },
+      });
+
+      const maxSecond = dialPoints.reduce((max, dp) => Math.max(max, dp.second), 0);
+
+      return {
+        type: "dial",
+        data: {
+          responseCount: n,
+          totalDataPoints: dialPoints.length,
+          durationSecs: maxSecond + 1,
+        },
+      };
     }
 
     default:

@@ -35,8 +35,14 @@ export function VideoDial({ question, onSubmit, loading }: VideoDialProps) {
   const [error, setError] = useState("");
   const [mediaUrl, setMediaUrl] = useState<string | null>(null);
 
+  const dialValueRef = useRef(dialValue);
   const lastInteractionRef = useRef(Date.now());
   const inactivityTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Keep ref in sync so time-update callback always reads latest dial value
+  useEffect(() => {
+    dialValueRef.current = dialValue;
+  }, [dialValue]);
 
   // Determine video source
   const config = question.config as Record<string, unknown>;
@@ -67,17 +73,17 @@ export function VideoDial({ question, onSubmit, loading }: VideoDialProps) {
     }
   }, [videoSource?.type, mediaItem, question.id]);
 
-  // Per-second capture
+  // Per-second capture — uses ref so callback identity stays stable
   const handleTimeUpdate = useCallback(
     (time: number) => {
       if (isBuffering) return;
       const second = Math.floor(time);
       setFeedback((prev) => {
         if (prev[second] !== undefined) return prev;
-        return { ...prev, [second]: dialValue };
+        return { ...prev, [second]: dialValueRef.current };
       });
     },
-    [dialValue, isBuffering]
+    [isBuffering]
   );
 
   // Inactivity warning (3 seconds without slider interaction)
