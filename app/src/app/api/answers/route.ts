@@ -94,6 +94,72 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
     },
   });
 
+  // Dual-write for VIDEO_DIAL: insert DialDataPoint + DialEvent rows
+  if (question.type === "VIDEO_DIAL") {
+    const dialValue = value as {
+      feedback?: Record<string, number>;
+      lightbulbs?: number[];
+      actions?: Record<string, number[]>;
+    };
+
+    // Write dial data points (per-second values)
+    if (dialValue.feedback) {
+      const dataPoints = Object.entries(dialValue.feedback).map(
+        ([second, val]) => ({
+          answerId: answer.id,
+          questionId,
+          responseId,
+          second: Number(second),
+          value: Number(val),
+        })
+      );
+
+      if (dataPoints.length > 0) {
+        // Delete existing data points for this answer (in case of re-submission)
+        await prisma.dialDataPoint.deleteMany({
+          where: { answerId: answer.id },
+        });
+        await prisma.dialDataPoint.createMany({ data: dataPoints });
+      }
+    }
+
+    // Write dial events (lightbulbs + action button taps)
+    const events: { answerId: string; questionId: string; responseId: string; eventType: string; timestamp: number }[] = [];
+
+    if (dialValue.lightbulbs) {
+      for (const ts of dialValue.lightbulbs) {
+        events.push({
+          answerId: answer.id,
+          questionId,
+          responseId,
+          eventType: "lightbulb",
+          timestamp: ts,
+        });
+      }
+    }
+
+    if (dialValue.actions) {
+      for (const [actionId, timestamps] of Object.entries(dialValue.actions)) {
+        for (const ts of timestamps) {
+          events.push({
+            answerId: answer.id,
+            questionId,
+            responseId,
+            eventType: `action:${actionId}`,
+            timestamp: ts,
+          });
+        }
+      }
+    }
+
+    if (events.length > 0) {
+      await prisma.dialEvent.deleteMany({
+        where: { answerId: answer.id },
+      });
+      await prisma.dialEvent.createMany({ data: events });
+    }
+  }
+
   // Server-side screening logic evaluation for screening questions
   let screenOut = false;
   let skipToQuestionId: string | undefined;

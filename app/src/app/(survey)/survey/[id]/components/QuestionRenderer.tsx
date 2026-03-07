@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
+import { VideoDial } from "./video-dial/VideoDial";
 import type { SurveyQuestion } from "./SurveyShell";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -30,6 +31,25 @@ export function QuestionRenderer({
   }, [answer, onSubmit]);
 
   const isValid = answer !== null && answer !== undefined;
+
+  // VIDEO_DIAL has its own submit flow (video must finish first)
+  if (question.type === "VIDEO_DIAL") {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h2 className="text-lg font-medium text-foreground">
+            {question.title}
+          </h2>
+          {question.prompt && (
+            <p className="text-sm text-muted-foreground mt-1">
+              {question.prompt}
+            </p>
+          )}
+        </div>
+        <VideoDial question={question} onSubmit={onSubmit} loading={loading} />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -184,13 +204,8 @@ function QuestionBody({
         />
       );
     case "VIDEO_DIAL":
-      return (
-        <div className="rounded-lg border border-border p-6 text-center">
-          <p className="text-sm text-muted-foreground">
-            Video dial testing will be available in Phase 4.
-          </p>
-        </div>
-      );
+      // Handled directly in QuestionRenderer (has its own submit flow)
+      return null;
     default:
       return (
         <p className="text-sm text-muted-foreground">
