@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 
@@ -46,9 +46,14 @@ export function StudyActions({
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [surveyUrl, setSurveyUrl] = useState(
-    slug ? `${window.location.origin}/survey/${slug}` : ""
-  );
+  const [surveyUrl, setSurveyUrl] = useState("");
+
+  // Set survey URL on client side to avoid window reference during SSR
+  useEffect(() => {
+    if (slug) {
+      setSurveyUrl(`${window.location.origin}/survey/${slug}`);
+    }
+  }, [slug]);
   const [copied, setCopied] = useState(false);
 
   const actions = TRANSITIONS[status] || [];

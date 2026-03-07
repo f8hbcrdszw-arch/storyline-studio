@@ -301,6 +301,10 @@ export function QuestionEditor({
           onMediaAdded={(item: MediaItemData) =>
             onUpdate({ mediaItems: [...question.mediaItems, item] })
           }
+          onMediaRemoved={(id: string) =>
+            onUpdate({ mediaItems: question.mediaItems.filter((m) => m.id !== id) })
+          }
+          maxItems={question.type === "VIDEO_DIAL" ? 1 : undefined}
         />
       )}
 

@@ -7,13 +7,16 @@ export default async function SurveyPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { id: slug } = await params;
+  const { id: slugOrId } = await params;
 
-  // Look up study by slug (the URL param is the slug)
+  // UUID regex to determine if this is an ID or slug
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(slugOrId);
+
+  // Look up study by slug or ID
   const study = await prisma.study.findFirst({
-    where: {
-      OR: [{ slug }, { id: slug }],
-    },
+    where: isUuid
+      ? { OR: [{ slug: slugOrId }, { id: slugOrId }] }
+      : { slug: slugOrId },
     select: {
       id: true,
       title: true,

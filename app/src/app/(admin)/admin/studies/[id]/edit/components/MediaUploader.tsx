@@ -9,15 +9,41 @@ export function MediaUploader({
   questionId,
   mediaItems,
   onMediaAdded,
+  onMediaRemoved,
+  maxItems,
 }: {
   questionId: string;
   mediaItems: MediaItemData[];
   onMediaAdded: (item: MediaItemData) => void;
+  onMediaRemoved: (id: string) => void;
+  maxItems?: number;
 }) {
+  const atLimit = maxItems !== undefined && mediaItems.length >= maxItems;
   const [mode, setMode] = useState<"upload" | "youtube">("upload");
   const [youtubeUrl, setYoutubeUrl] = useState("");
   const [uploading, setUploading] = useState(false);
+  const [deleting, setDeleting] = useState<string | null>(null);
   const [error, setError] = useState("");
+
+  const handleDelete = useCallback(
+    async (id: string) => {
+      if (!confirm("Remove this media?")) return;
+      setDeleting(id);
+      try {
+        const res = await fetch(`/api/media-items/${id}`, { method: "DELETE" });
+        if (res.ok) {
+          onMediaRemoved(id);
+        } else {
+          setError("Failed to remove media");
+        }
+      } catch {
+        setError("Failed to remove media");
+      } finally {
+        setDeleting(null);
+      }
+    },
+    [onMediaRemoved]
+  );
 
   const handleFileUpload = useCallback(
     async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -151,65 +177,80 @@ export function MediaUploader({
                   {item.durationSecs && ` · ${item.durationSecs}s`}
                 </p>
               </div>
+              <button
+                onClick={() => handleDelete(item.id)}
+                disabled={deleting === item.id}
+                className="text-muted-foreground hover:text-destructive text-xs px-1.5 py-0.5 rounded hover:bg-destructive/10 disabled:opacity-50"
+              >
+                {deleting === item.id ? "..." : "Remove"}
+              </button>
             </div>
           ))}
         </div>
       )}
 
       {/* Upload controls */}
-      <div className="flex gap-1 mb-2">
-        <button
-          onClick={() => setMode("upload")}
-          className={`px-2 py-1 text-xs rounded ${
-            mode === "upload"
-              ? "bg-primary text-primary-foreground"
-              : "bg-muted text-muted-foreground"
-          }`}
-        >
-          Upload File
-        </button>
-        <button
-          onClick={() => setMode("youtube")}
-          className={`px-2 py-1 text-xs rounded ${
-            mode === "youtube"
-              ? "bg-primary text-primary-foreground"
-              : "bg-muted text-muted-foreground"
-          }`}
-        >
-          YouTube URL
-        </button>
-      </div>
-
-      {mode === "upload" ? (
-        <div>
-          <input
-            type="file"
-            accept="video/mp4,video/webm,video/quicktime,image/jpeg,image/png,image/webp"
-            onChange={handleFileUpload}
-            disabled={uploading}
-            className="text-xs"
-          />
-          {uploading && (
-            <p className="text-xs text-muted-foreground mt-1">Uploading...</p>
-          )}
-        </div>
+      {atLimit ? (
+        <p className="text-xs text-muted-foreground">
+          {maxItems === 1 ? "Remove the current media to replace it." : `Maximum ${maxItems} media items.`}
+        </p>
       ) : (
-        <div className="flex gap-2">
-          <input
-            type="text"
-            value={youtubeUrl}
-            onChange={(e) => setYoutubeUrl(e.target.value)}
-            placeholder="https://youtube.com/watch?v=..."
-            className="flex-1 rounded-md border border-input bg-background px-2 py-1 text-sm"
-          />
-          <Button
-            size="sm"
-            onClick={handleYouTubeAdd}
-            disabled={uploading || !youtubeUrl}
-          >
-            Add
-          </Button>
-        </div>
+        <>
+          <div className="flex gap-1 mb-2">
+            <button
+              onClick={() => setMode("upload")}
+              className={`px-2 py-1 text-xs rounded ${
+                mode === "upload"
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-muted text-muted-foreground"
+              }`}
+            >
+              Upload File
+            </button>
+            <button
+              onClick={() => setMode("youtube")}
+              className={`px-2 py-1 text-xs rounded ${
+                mode === "youtube"
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-muted text-muted-foreground"
+              }`}
+            >
+              YouTube URL
+            </button>
+          </div>
+
+          {mode === "upload" ? (
+            <div>
+              <input
+                type="file"
+                accept="video/mp4,video/webm,video/quicktime,image/jpeg,image/png,image/webp"
+                onChange={handleFileUpload}
+                disabled={uploading}
+                className="text-xs"
+              />
+              {uploading && (
+                <p className="text-xs text-muted-foreground mt-1">Uploading...</p>
+              )}
+            </div>
+          ) : (
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={youtubeUrl}
+                onChange={(e) => setYoutubeUrl(e.target.value)}
+                placeholder="https://youtube.com/watch?v=..."
+                className="flex-1 rounded-md border border-input bg-background px-2 py-1 text-sm"
+              />
+              <Button
+                size="sm"
+                onClick={handleYouTubeAdd}
+                disabled={uploading || !youtubeUrl}
+              >
+                Add
+              </Button>
+            </div>
+          )}
+        </>
       )}
 
       {error && <p className="text-xs text-destructive">{error}</p>}

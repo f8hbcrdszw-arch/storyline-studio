@@ -19,20 +19,32 @@ function LoginForm() {
     setError("");
     setLoading(true);
 
-    const supabase = createSupabaseBrowserClient();
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    try {
+      const supabase = createSupabaseBrowserClient();
+      const { error, data } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-    if (error) {
-      setError("Invalid email or password");
+      if (error) {
+        setError(error.message);
+        setLoading(false);
+        return;
+      }
+
+      if (!data.session) {
+        setError("Login succeeded but no session was created");
+        setLoading(false);
+        return;
+      }
+
+      // Small delay to let cookies propagate before navigating
+      await new Promise((r) => setTimeout(r, 200));
+      window.location.href = redirect;
+    } catch (err) {
+      setError(`Unexpected error: ${err instanceof Error ? err.message : String(err)}`);
       setLoading(false);
-      return;
     }
-
-    router.push(redirect);
-    router.refresh();
   }
 
   return (

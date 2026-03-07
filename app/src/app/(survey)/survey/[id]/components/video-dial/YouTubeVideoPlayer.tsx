@@ -74,6 +74,8 @@ export const YouTubeVideoPlayer = forwardRef<VideoPlayerHandle, YouTubeVideoPlay
         containerRef.current.appendChild(el);
 
         playerRef.current = new YT.Player(el.id, {
+          width: "100%",
+          height: "100%",
           videoId,
           playerVars: {
             controls: 0,
@@ -174,7 +176,7 @@ export const YouTubeVideoPlayer = forwardRef<VideoPlayerHandle, YouTubeVideoPlay
     return (
       <div className="relative w-full bg-black rounded-lg overflow-hidden aspect-video">
         {/* YouTube player container */}
-        <div ref={containerRef} className="w-full h-full" />
+        <div ref={containerRef} className="absolute inset-0 [&_iframe]:w-full [&_iframe]:h-full" />
 
         {/* Transparent overlay to prevent tap-to-pause */}
         {!showOverlay && (

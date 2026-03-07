@@ -2,7 +2,6 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { redirect, notFound } from "next/navigation";
-import { buttonVariants } from "@/components/ui/button";
 
 import { StudyActions } from "./components/StudyActions";
 
@@ -68,14 +67,14 @@ export default async function StudyDetailPage({
           {study._count.responses > 0 && (
             <Link
               href={`/admin/studies/${id}/results`}
-              className={buttonVariants({ variant: "outline" })}
+              className="inline-flex items-center justify-center rounded-lg border border-border bg-background px-3 py-2 text-sm font-medium hover:bg-muted"
             >
               View Results
             </Link>
           )}
           <Link
             href={`/admin/studies/${id}/edit`}
-            className={buttonVariants({ variant: "outline" })}
+            className="inline-flex items-center justify-center rounded-lg border border-border bg-background px-3 py-2 text-sm font-medium hover:bg-muted"
           >
             Edit Study
           </Link>

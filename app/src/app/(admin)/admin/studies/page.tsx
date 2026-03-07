@@ -2,7 +2,6 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-import { buttonVariants } from "@/components/ui/button";
 
 export default async function StudiesPage() {
   const supabase = await createSupabaseServerClient();
@@ -29,7 +28,10 @@ export default async function StudiesPage() {
             Create and manage your survey studies
           </p>
         </div>
-        <Link href="/admin/studies/new" className={buttonVariants()}>
+        <Link
+          href="/admin/studies/new"
+          className="inline-flex items-center justify-center rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+        >
           New Study
         </Link>
       </div>
