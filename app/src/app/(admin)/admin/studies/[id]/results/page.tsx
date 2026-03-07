@@ -36,7 +36,7 @@ export default async function StudyResultsPage({
             select: { id: true, label: true, value: true },
           },
           mediaItems: {
-            select: { id: true, source: true, youtubeId: true },
+            select: { id: true, source: true, youtubeId: true, url: true },
           },
         },
       },

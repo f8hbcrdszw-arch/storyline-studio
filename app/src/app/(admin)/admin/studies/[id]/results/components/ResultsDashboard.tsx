@@ -11,7 +11,7 @@ interface QuestionInfo {
   order: number;
   isScreening: boolean;
   options: { id: string; label: string; value: string }[];
-  mediaItems: { id: string; source: string; youtubeId: string | null }[];
+  mediaItems: { id: string; source: string; youtubeId: string | null; url: string | null }[];
 }
 
 export function ResultsDashboard({

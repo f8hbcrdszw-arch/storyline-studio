@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { DialPlayback } from "./DialPlayback";
 
 interface QuestionInfo {
   id: string;
@@ -10,7 +11,7 @@ interface QuestionInfo {
   order: number;
   isScreening: boolean;
   options: { id: string; label: string; value: string }[];
-  mediaItems: { id: string; source: string; youtubeId: string | null }[];
+  mediaItems: { id: string; source: string; youtubeId: string | null; url: string | null }[];
 }
 
 interface ListResult {
@@ -85,6 +86,7 @@ export function QuestionResults({
   const [dialData, setDialData] = useState<{
     dialData: DialAggregation[];
     lightbulbs: Record<number, number>;
+    annotations?: { text: string; answeredAt: string }[];
   } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -179,7 +181,17 @@ export function QuestionResults({
       {result.type === "grid" && <GridResultView data={result.data} />}
 
       {question.type === "VIDEO_DIAL" && dialData && (
-        <DialResultView data={dialData} />
+        <>
+          {question.mediaItems[0] && (
+            <DialPlayback
+              questionId={question.id}
+              mediaItem={question.mediaItems[0]}
+              dialData={dialData.dialData}
+              lightbulbs={dialData.lightbulbs}
+            />
+          )}
+          <DialResultView data={dialData} />
+        </>
       )}
     </div>
   );
