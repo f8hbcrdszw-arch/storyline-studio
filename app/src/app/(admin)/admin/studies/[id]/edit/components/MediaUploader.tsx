@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { parseYouTubeId, getYouTubeThumbnail } from "@/lib/youtube";
 import type { MediaItemData } from "./StudyEditor";
 
@@ -23,11 +24,12 @@ export function MediaUploader({
   const [youtubeUrl, setYoutubeUrl] = useState("");
   const [uploading, setUploading] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [error, setError] = useState("");
 
   const handleDelete = useCallback(
     async (id: string) => {
-      if (!confirm("Remove this media?")) return;
+      setConfirmDeleteId(null);
       setDeleting(id);
       try {
         const res = await fetch(`/api/media-items/${id}`, { method: "DELETE" });
@@ -178,7 +180,7 @@ export function MediaUploader({
                 </p>
               </div>
               <button
-                onClick={() => handleDelete(item.id)}
+                onClick={() => setConfirmDeleteId(item.id)}
                 disabled={deleting === item.id}
                 className="text-muted-foreground hover:text-destructive text-xs px-1.5 py-0.5 rounded hover:bg-destructive/10 disabled:opacity-50"
               >
@@ -254,6 +256,17 @@ export function MediaUploader({
       )}
 
       {error && <p className="text-xs text-destructive">{error}</p>}
+
+      <ConfirmDialog
+        open={!!confirmDeleteId}
+        title="Remove media"
+        description="This media will be permanently removed from the question."
+        confirmLabel="Remove"
+        onConfirm={() => {
+          if (confirmDeleteId) handleDelete(confirmDeleteId);
+        }}
+        onCancel={() => setConfirmDeleteId(null)}
+      />
     </div>
   );
 }

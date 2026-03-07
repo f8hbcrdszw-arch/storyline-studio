@@ -1,9 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import type { QuestionData } from "./StudyEditor";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { QuestionEditor } from "./QuestionEditor";
 
 const TYPE_LABELS: Record<string, string> = {
@@ -51,6 +53,7 @@ export function SortableQuestion({
   onDelete: () => void;
   onUpdate: (updates: Partial<QuestionData>) => void;
 }) {
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const {
     attributes,
     listeners,
@@ -141,7 +144,7 @@ export function SortableQuestion({
             size="icon-xs"
             onClick={(e) => {
               e.stopPropagation();
-              if (confirm("Delete this question?")) onDelete();
+              setConfirmDelete(true);
             }}
             className="text-muted-foreground hover:text-destructive"
           >
@@ -168,6 +171,18 @@ export function SortableQuestion({
           onUpdate={onUpdate}
         />
       )}
+
+      <ConfirmDialog
+        open={confirmDelete}
+        title="Delete question"
+        description="This question and its responses will be permanently removed."
+        confirmLabel="Delete"
+        onConfirm={() => {
+          setConfirmDelete(false);
+          onDelete();
+        }}
+        onCancel={() => setConfirmDelete(false)}
+      />
     </div>
   );
 }
