@@ -580,7 +580,7 @@ const playerVars: YT.PlayerVars = {
 
 > **Critical change from original plan**: Security controls (input validation, CSRF, rate limiting framework, error handling) are now in Phase 1, not Phase 7. These are foundational, not polish.
 
-- [ ] Initialize Next.js 15 project with TypeScript, Tailwind, shadcn/ui
+- [x] Initialize Next.js 15 project with TypeScript, Tailwind, shadcn/ui
   - Route group structure: `app/(admin)/admin/`, `app/(survey)/survey/[id]/`, `app/api/`
   - **Brand setup**: Configure `next/font/local` with Scto Grotesk A, Items, Phonic Monospaced (see Brand & Design section)
   - Copy web fonts from `Web Fonts/` to `public/fonts/` (woff2 preferred, woff fallback)
@@ -588,31 +588,31 @@ const playerVars: YT.PlayerVars = {
   - Map brand colors to shadcn/ui CSS variables (`--background`, `--foreground`, `--primary`)
   - Route groups ensure separate bundles — survey never includes admin deps
 - [ ] Set up Supabase project (Postgres + Auth)
-- [ ] Define Prisma schema with all models, enums, indexes, and constraints
+- [x] Define Prisma schema with all models, enums, indexes, and constraints
   - Core models: `Study`, `Question`, `QuestionOption`, `MediaItem`, `Response`, `Answer`, `DialDataPoint`
-  - Supporting models: `ExportJob`, `AuditLog`
+  - Supporting models: `ExportJob`, `AuditLog`, `DialEvent`
   - All UNIQUE constraints (`response_id + question_id` on Answer, etc.)
   - Configure dual connection strings (PgBouncer pooled + direct for migrations)
 - [ ] Run initial migrations
-- [ ] Set up Supabase Auth for admin users (email/password + **MFA required**)
-- [ ] Implement API middleware: `requireAdmin.ts`, `requireRespondent.ts`
-- [ ] **Security baseline:**
+- [x] Set up Supabase Auth for admin users (email/password + **MFA required**)
+- [x] Implement API middleware: `requireAdmin.ts`, `requireRespondent.ts`
+- [x] **Security baseline:**
   - Global error handler returning generic messages (never expose Prisma/Postgres errors)
   - Zod validation framework for all API request bodies
-  - CSRF protection on all state-changing endpoints (double-submit cookie pattern)
+  - CSRF protection on all state-changing endpoints (JSON Content-Type + Origin validation)
   - Security headers: CSP, X-Frame-Options, X-Content-Type-Options, HSTS, Referrer-Policy
   - Cookie security: HttpOnly, Secure, SameSite=Lax
-  - Rate limiting infrastructure (can use Vercel KV or upstash/ratelimit)
-- [ ] Create admin layout with sidebar navigation
-- [ ] Implement Study CRUD (create, list, edit title/description, delete draft)
-- [ ] Set up R2/S3 bucket for media with presigned upload URLs
+  - Rate limiting infrastructure (in-memory, swap to upstash for production)
+- [x] Create admin layout with sidebar navigation
+- [x] Implement Study CRUD (create, list, edit title/description, delete draft)
+- [x] Set up R2/S3 bucket for media with presigned upload URLs
   - CORS restrictions: only application domain
   - File type validation (client-side MIME + server-side magic bytes)
   - File size limits on presigned URL policy (2GB video, 10MB images)
   - Store files with UUID names; keep original filename for display only
-- [ ] Configure environment variables and deployment pipeline
-- [ ] Implement session-validated media proxy endpoint (`/api/media/[questionId]`)
-- [ ] Signed URL generation with 15-30 minute expiry
+- [x] Configure environment variables and deployment pipeline
+- [x] Implement session-validated media proxy endpoint (`/api/media/[questionId]`)
+- [x] Signed URL generation with 15-30 minute expiry
 
 **Key files:**
 - `prisma/schema.prisma`
