@@ -115,6 +115,29 @@ export function StudyActions({
     }
   };
 
+  const handleDuplicate = async () => {
+    setLoading(true);
+    setError("");
+
+    try {
+      const res = await fetch(`/api/studies/${studyId}/duplicate`, {
+        method: "POST",
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to duplicate");
+      }
+
+      const data = await res.json();
+      router.push(`/admin/studies/${data.id}/edit`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to duplicate");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const copyLink = async () => {
     await navigator.clipboard.writeText(surveyUrl);
     setCopied(true);
@@ -160,6 +183,15 @@ export function StudyActions({
               {loading ? "..." : action.label}
             </Button>
           ))}
+
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={loading}
+            onClick={handleDuplicate}
+          >
+            Duplicate
+          </Button>
 
           {status !== "DRAFT" && (
             <span className="text-xs text-muted-foreground ml-auto">

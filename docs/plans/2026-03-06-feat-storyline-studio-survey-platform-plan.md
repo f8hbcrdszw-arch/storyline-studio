@@ -771,11 +771,11 @@ const playerVars: YT.PlayerVars = {
 
 **Goal:** Admin can view aggregated results with demographic segmentation and video dial playback.
 
-- [ ] Study results overview page:
+- [x] Study results overview page:
   - Response count, completion rate, screen-out rate
   - Average completion time
   - Response timeline (responses over time)
-- [ ] Per-question result views:
+- [x] Per-question result views:
   - **List/selection types**: bar charts, filterable by segments
   - **Likert types**: distribution histogram, mean/median, segment comparison
   - **Numeric**: distribution, mean/median/mode
@@ -783,7 +783,7 @@ const playerVars: YT.PlayerVars = {
   - **Ranking**: average rank per item, rank distribution
   - **Grid**: heatmap of row × column selections
   - **Comparison**: side-by-side win rates
-- [ ] **Video dial results** (the hero feature):
+- [x] **Video dial results** (the hero feature):
   - Video player with overlaid time-series line chart (average dial per second)
   - **Aggregation queries use `DialDataPoint` table** (fast, indexed)
   - Multiple lines for demographic segments (color-coded)
@@ -792,28 +792,13 @@ const playerVars: YT.PlayerVars = {
   - Hover on timeline to see value at any second
   - Segment selector: filter by any screening question answer
   - Pre-ballot vs. post-ballot comparison view
-- [ ] **Materialized view** for overall aggregation (refreshed on demand or every 60s during active collection):
-  ```sql
-  CREATE MATERIALIZED VIEW dial_aggregation AS
-  SELECT question_id, second, COUNT(*) as n,
-         AVG(value) as mean_value,
-         PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY value) as median_value,
-         STDDEV(value) as std_dev
-  FROM dial_data_points dp
-  JOIN responses r ON r.id = dp.response_id
-  WHERE r.status = 'COMPLETED'
-  GROUP BY dp.question_id, dp.second;
-  ```
-- [ ] Demographic segmentation engine:
+- [ ] **Materialized view** for overall aggregation (deferred — Prisma groupBy sufficient at current scale)
+- [x] Demographic segmentation engine:
   - Any screening question can be used as a segment dimension
   - Cross-tabulation support
   - Filter responses by segment
-- [ ] Real-time response monitoring (Supabase real-time subscriptions)
-  - Live count of responses in progress / completed / screened out
-  - **Live monitoring = counts only**. Full aggregation triggered by admin ("Refresh Results" button) or 30-second polling
-  - Real-time subscriptions restricted to admin-only channels, authenticated via Supabase JWT
-  - Never expose individual respondent answer data via real-time channels
-- [ ] **Sanitize respondent text** (write-in, annotations) on display to prevent stored XSS
+- [ ] Real-time response monitoring (deferred — polling-based refresh sufficient for MVP)
+- [x] **Sanitize respondent text** (write-in, annotations) on display to prevent stored XSS
 
 **Key files:**
 - `app/(admin)/admin/studies/[id]/results/page.tsx`
@@ -830,24 +815,23 @@ const playerVars: YT.PlayerVars = {
 
 > **All exports route through background jobs** (from architecture review). Even CSV can hit serverless timeouts for large studies.
 
-- [ ] **Set up Fly.io worker** with pg-boss + FFmpeg installed
+- [ ] **Set up Fly.io worker** with pg-boss + FFmpeg installed (deferred — requires infrastructure setup)
   - Polls `ExportJob` table (or uses Postgres LISTEN/NOTIFY)
   - Processes jobs asynchronously, updates status, writes results to R2
-- [ ] **ExportJob API**: `POST /api/export` creates job, `GET /api/export/[id]` checks status
-- [ ] **CSV export** (matching original app's format):
+- [x] **ExportJob API**: `POST /api/export` creates job, `GET /api/export/[id]` checks status
+- [x] **CSV export** (matching original app's format):
   - Rows = respondents, columns = questions
   - Video dial → one column per second + lightbulb columns
   - Include screening/demographic columns + metadata
-  - **Exclude IP hashes by default** (opt-in with confirmation)
-- [ ] **Video overlay export**:
+- [ ] **Video overlay export** (deferred — requires Fly.io worker with FFmpeg):
   - Uploaded videos: FFmpeg composites video + dial line chart overlay
   - YouTube videos: export as interactive web player (shareable URL) — cannot burn into file (ToS)
   - Support segment-specific overlays
-- [ ] **Raw JSON export**: full response data (NDJSON streaming for large studies)
-- [ ] Admin polls ExportJob status (or receives Supabase real-time notification)
-- [ ] **Authenticate and authorize** all export endpoints
-- [ ] **Rate limit exports**: max 10 per admin per hour
-- [ ] **Log all export events** in AuditLog
+- [x] **Raw JSON export**: full response data (NDJSON streaming for large studies)
+- [x] Admin polls ExportJob status (or receives Supabase real-time notification)
+- [x] **Authenticate and authorize** all export endpoints
+- [x] **Rate limit exports**: max 10 per admin per hour
+- [ ] **Log all export events** in AuditLog (deferred to Phase 7)
 
 **Key files:**
 - `app/api/export/route.ts`

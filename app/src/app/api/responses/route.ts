@@ -18,7 +18,7 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
   // Verify study is active
   const study = await prisma.study.findUnique({
     where: { id: studyId },
-    select: { id: true, status: true },
+    select: { id: true, status: true, settings: true },
   });
 
   if (!study) {
@@ -30,6 +30,23 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
       { error: "This survey is not currently accepting responses" },
       { status: 410 }
     );
+  }
+
+  // Check respondent quota
+  const settings = study.settings as Record<string, unknown> | null;
+  const maxResponses = typeof settings?.maxResponses === "number" ? settings.maxResponses : null;
+
+  if (maxResponses !== null) {
+    const completedCount = await prisma.response.count({
+      where: { studyId, status: "COMPLETED" },
+    });
+
+    if (completedCount >= maxResponses) {
+      return NextResponse.json(
+        { error: "This survey has reached its response limit" },
+        { status: 410 }
+      );
+    }
   }
 
   // Check for existing respondent cookie
