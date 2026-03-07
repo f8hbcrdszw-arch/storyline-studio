@@ -1,19 +1,19 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { ZodError } from "zod";
 
 /**
  * Wraps an API route handler to catch errors and return safe responses.
  * Never exposes internal error details (Prisma, Postgres, etc.) to clients.
  */
-export function withErrorHandler(
+export function withErrorHandler<T extends Record<string, string> = Record<string, string>>(
   handler: (
-    request: Request,
-    context: { params: Promise<Record<string, string>> }
+    request: NextRequest,
+    context: { params: Promise<T> }
   ) => Promise<NextResponse>
 ) {
   return async (
-    request: Request,
-    context: { params: Promise<Record<string, string>> }
+    request: NextRequest,
+    context: { params: Promise<T> }
   ): Promise<NextResponse> => {
     try {
       return await handler(request, context);
