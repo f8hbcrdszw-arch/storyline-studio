@@ -1,8 +1,7 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+// ─────────────────────────────────────────────────────────────────────────────
+// Storyline Studio — Prisma Schema
+// PostgreSQL via Supabase | Prisma 6+ with PrismaPg driver adapter
+// ─────────────────────────────────────────────────────────────────────────────
 
 generator client {
   provider = "prisma-client"
@@ -11,4 +10,287 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ENUMS
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum StudyStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  CLOSED
+  ARCHIVED
+}
+
+enum QuestionPhase {
+  SCREENING
+  PRE_BALLOT
+  STIMULUS
+  POST_BALLOT
+}
+
+enum QuestionType {
+  VIDEO_DIAL
+  STANDARD_LIST
+  WORD_LIST
+  IMAGE_LIST
+  LIKERT
+  MULTI_LIKERT
+  NUMERIC
+  WRITE_IN
+  TEXT_AB
+  IMAGE_AB
+  LIST_RANKING
+  GRID
+  COMPARISON
+  AD_MOCK_UP
+  OVERALL_REACTION
+  SELECT_FROM_SET
+  MULTI_AD
+  CREATIVE_COPY
+}
+
+enum ResponseStatus {
+  IN_PROGRESS
+  SCREENED_OUT
+  COMPLETED
+  ABANDONED
+}
+
+enum MediaSource {
+  UPLOAD
+  YOUTUBE
+}
+
+enum MediaType {
+  VIDEO
+  IMAGE
+  AUDIO
+}
+
+enum ExportType {
+  CSV
+  VIDEO
+  JSON
+}
+
+enum ExportStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MODELS
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Study {
+  id          String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title       String      @db.VarChar(255)
+  description String?     @db.Text
+  status      StudyStatus @default(DRAFT)
+  settings    Json        @default("{}") @db.JsonB
+
+  createdBy String   @map("created_by") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  questions  Question[]
+  responses  Response[]
+  exportJobs ExportJob[]
+
+  @@index([status])
+  @@index([createdBy])
+  @@index([createdAt])
+  @@map("studies")
+}
+
+model Question {
+  id          String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  studyId     String        @map("study_id") @db.Uuid
+  phase       QuestionPhase
+  type        QuestionType
+  order       Int           @db.SmallInt
+  title       String        @db.VarChar(500)
+  prompt      String?       @db.Text
+  config      Json          @default("{}") @db.JsonB
+  required    Boolean       @default(true)
+  isScreening Boolean       @default(false) @map("is_screening")
+  skipLogic   Json?         @map("skip_logic") @db.JsonB
+
+  study      Study            @relation(fields: [studyId], references: [id], onDelete: Cascade)
+  options    QuestionOption[]
+  mediaItems MediaItem[]
+  answers    Answer[]
+
+  @@unique([studyId, order])
+  @@index([studyId, phase, order])
+  @@index([studyId, isScreening])
+  @@index([type])
+  @@map("questions")
+}
+
+model QuestionOption {
+  id         String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  questionId String @map("question_id") @db.Uuid
+  label      String @db.VarChar(500)
+  value      String @db.VarChar(255)
+  order      Int    @db.SmallInt
+  imageUrl   String? @map("image_url") @db.Text
+
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([questionId, order])
+  @@index([questionId])
+  @@map("question_options")
+}
+
+model MediaItem {
+  id           String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  questionId   String      @map("question_id") @db.Uuid
+  source       MediaSource
+  url          String?     @db.Text
+  youtubeId    String?     @map("youtube_id") @db.VarChar(20)
+  filename     String?     @db.VarChar(255)
+  type         MediaType
+  durationSecs Int?        @map("duration_secs")
+  thumbnailUrl String?     @map("thumbnail_url") @db.Text
+
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@index([questionId])
+  @@map("media_items")
+}
+
+model Response {
+  id           String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  studyId      String         @map("study_id") @db.Uuid
+  respondentId String         @map("respondent_id") @db.Uuid
+  status       ResponseStatus @default(IN_PROGRESS)
+  startedAt    DateTime       @default(now()) @map("started_at") @db.Timestamptz(3)
+  completedAt  DateTime?      @map("completed_at") @db.Timestamptz(3)
+  metadata     Json           @default("{}") @db.JsonB
+
+  study          Study          @relation(fields: [studyId], references: [id], onDelete: Cascade)
+  answers        Answer[]
+  dialDataPoints DialDataPoint[]
+  dialEvents     DialEvent[]
+
+  @@unique([studyId, respondentId])
+  @@index([studyId, status])
+  @@index([studyId, completedAt])
+  @@index([respondentId])
+  @@index([status])
+  @@index([startedAt])
+  @@map("responses")
+}
+
+model Answer {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  responseId String   @map("response_id") @db.Uuid
+  questionId String   @map("question_id") @db.Uuid
+  value      Json     @db.JsonB
+  answeredAt DateTime @default(now()) @map("answered_at") @db.Timestamptz(3)
+
+  response       Response        @relation(fields: [responseId], references: [id], onDelete: Cascade)
+  question       Question        @relation(fields: [questionId], references: [id], onDelete: Restrict)
+  dialDataPoints DialDataPoint[]
+  dialEvents     DialEvent[]
+
+  @@unique([responseId, questionId])
+  @@index([responseId])
+  @@index([questionId])
+  @@index([questionId, answeredAt])
+  @@map("answers")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DIAL TIME-SERIES TABLES
+// Normalized storage for per-second dial values and discrete events
+// (lightbulbs, tune-out, etc.) — optimized for aggregation queries.
+// Canonical data also stored in Answer.value JSONB (dual-write pattern).
+// ─────────────────────────────────────────────────────────────────────────────
+
+model DialDataPoint {
+  id         String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  answerId   String @map("answer_id") @db.Uuid
+  questionId String @map("question_id") @db.Uuid
+  responseId String @map("response_id") @db.Uuid
+  second     Int    @db.SmallInt
+  value      Int    @db.SmallInt
+
+  answer   Answer   @relation(fields: [answerId], references: [id], onDelete: Cascade)
+  response Response @relation(fields: [responseId], references: [id], onDelete: Cascade)
+
+  @@unique([answerId, second])
+  @@index([questionId, second])
+  @@index([questionId, responseId])
+  @@map("dial_data_points")
+}
+
+model DialEvent {
+  id         String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  answerId   String  @map("answer_id") @db.Uuid
+  questionId String  @map("question_id") @db.Uuid
+  responseId String  @map("response_id") @db.Uuid
+  eventType  String  @map("event_type") @db.VarChar(50)
+  timestamp  Decimal @db.Decimal(8, 2)
+
+  answer   Answer   @relation(fields: [answerId], references: [id], onDelete: Cascade)
+  response Response @relation(fields: [responseId], references: [id], onDelete: Cascade)
+
+  @@index([questionId, eventType])
+  @@index([answerId])
+  @@index([questionId, timestamp])
+  @@map("dial_events")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// EXPORT JOBS
+// Background job tracking for exports that may exceed Vercel serverless limits.
+// Processed by Fly.io worker via pg-boss.
+// ─────────────────────────────────────────────────────────────────────────────
+
+model ExportJob {
+  id          String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  studyId     String       @map("study_id") @db.Uuid
+  type        ExportType
+  status      ExportStatus @default(PENDING)
+  resultUrl   String?      @map("result_url") @db.Text
+  config      Json         @default("{}") @db.JsonB
+  createdBy   String       @map("created_by") @db.Uuid
+  createdAt   DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  completedAt DateTime?    @map("completed_at") @db.Timestamptz(3)
+  error       String?      @db.Text
+
+  study Study @relation(fields: [studyId], references: [id], onDelete: Cascade)
+
+  @@index([studyId])
+  @@index([status])
+  @@index([createdBy])
+  @@map("export_jobs")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AUDIT LOG
+// Immutable log of admin actions for security and compliance.
+// ─────────────────────────────────────────────────────────────────────────────
+
+model AuditLog {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId       String   @map("user_id") @db.Uuid
+  action       String   @db.VarChar(100)
+  resourceType String   @map("resource_type") @db.VarChar(50)
+  resourceId   String   @map("resource_id") @db.Uuid
+  metadata     Json     @default("{}") @db.JsonB
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@index([userId])
+  @@index([resourceType, resourceId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("audit_logs")
 }
