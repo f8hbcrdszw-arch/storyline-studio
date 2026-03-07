@@ -20,6 +20,7 @@ export interface StudySettings {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface QuestionConfig {
+  displayStyle?: "list" | "bubbles" | "images";
   minSelect?: number;
   maxSelect?: number;
   minValue?: number;
@@ -27,12 +28,16 @@ export interface QuestionConfig {
   step?: number;
   rows?: { id: string; label: string }[];
   columns?: { id: string; label: string }[];
-  sets?: { id: string; label: string; options: string[] }[];
+  attributes?: string[];
+  maxPerAttribute?: number;
+  maxRank?: number;
   likertScale?: number;
   likertLabels?: { low: string; high: string };
   randomizeOptions?: boolean;
   allowAnnotation?: boolean;
   maxAnnotationLength?: number;
+  maxLength?: number;
+  placeholder?: string;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -74,7 +79,7 @@ export interface VideoDialAnswerValue {
   sliderInteracted: boolean;
 }
 
-export interface ListAnswerValue {
+export interface MultipleChoiceAnswerValue {
   selected: string[];
 }
 
@@ -82,19 +87,15 @@ export interface LikertAnswerValue {
   value: number;
 }
 
-export interface MultiLikertAnswerValue {
-  values: Record<string, number>;
+export interface OpenTextAnswerValue {
+  text: string;
 }
 
 export interface NumericAnswerValue {
   value: number;
 }
 
-export interface WriteInAnswerValue {
-  text: string;
-}
-
-export interface ABAnswerValue {
+export interface ABTestAnswerValue {
   selected: string;
   annotation?: string;
 }
@@ -103,55 +104,37 @@ export interface RankingAnswerValue {
   ranked: string[];
 }
 
-export interface GridAnswerValue {
+export interface MatrixAnswerValue {
   values: Record<string, string>;
 }
 
-export interface ComparisonAnswerValue {
-  values: Record<string, string>;
+export interface MultiItemRatingAnswerValue {
+  values: Record<string, number>;
 }
 
-export interface AdMockUpAnswerValue {
-  positive: string[];
-  negative: string[];
-  posAnnotation?: string;
-  negAnnotation?: string;
+export interface SentimentAnswerValue {
+  ratings: Record<string, string[]>;
+  annotation?: string;
 }
 
-export interface OverallReactionAnswerValue {
+export interface ReactionAnswerValue {
   rating: number;
   selected: string[];
   annotation?: string;
 }
 
-export interface SelectFromSetAnswerValue {
-  selected: Record<string, string>;
-}
-
-export interface MultiAdAnswerValue {
-  selected: Record<string, string[]>;
-}
-
-export interface CreativeCopyAnswerValue {
-  annotations: string[];
-}
-
 export type AnswerValue =
   | VideoDialAnswerValue
-  | ListAnswerValue
+  | MultipleChoiceAnswerValue
   | LikertAnswerValue
-  | MultiLikertAnswerValue
+  | OpenTextAnswerValue
   | NumericAnswerValue
-  | WriteInAnswerValue
-  | ABAnswerValue
+  | ABTestAnswerValue
   | RankingAnswerValue
-  | GridAnswerValue
-  | ComparisonAnswerValue
-  | AdMockUpAnswerValue
-  | OverallReactionAnswerValue
-  | SelectFromSetAnswerValue
-  | MultiAdAnswerValue
-  | CreativeCopyAnswerValue;
+  | MatrixAnswerValue
+  | MultiItemRatingAnswerValue
+  | SentimentAnswerValue
+  | ReactionAnswerValue;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ExportJob.config

@@ -103,101 +103,45 @@ function QuestionBody({
   onChange: (value: unknown) => void;
 }) {
   switch (question.type) {
-    case "STANDARD_LIST":
-    case "WORD_LIST":
-    case "IMAGE_LIST":
+    case "MULTIPLE_CHOICE":
       return (
-        <ListQuestion question={question} answer={answer} onChange={onChange} />
+        <MultipleChoiceQuestion question={question} answer={answer} onChange={onChange} />
       );
     case "LIKERT":
       return (
-        <LikertQuestion
-          question={question}
-          answer={answer}
-          onChange={onChange}
-        />
+        <LikertQuestion question={question} answer={answer} onChange={onChange} />
       );
-    case "MULTI_LIKERT":
+    case "MULTI_ITEM_RATING":
       return (
-        <MultiLikertQuestion
-          question={question}
-          answer={answer}
-          onChange={onChange}
-        />
+        <MultiItemRatingQuestion question={question} answer={answer} onChange={onChange} />
       );
     case "NUMERIC":
       return (
-        <NumericQuestion
-          question={question}
-          answer={answer}
-          onChange={onChange}
-        />
+        <NumericQuestion question={question} answer={answer} onChange={onChange} />
       );
-    case "WRITE_IN":
-    case "CREATIVE_COPY":
+    case "OPEN_TEXT":
       return (
-        <WriteInQuestion
-          question={question}
-          answer={answer}
-          onChange={onChange}
-        />
+        <OpenTextQuestion question={question} answer={answer} onChange={onChange} />
       );
-    case "TEXT_AB":
-    case "IMAGE_AB":
+    case "AB_TEST":
       return (
-        <ABQuestion question={question} answer={answer} onChange={onChange} />
+        <ABTestQuestion question={question} answer={answer} onChange={onChange} />
       );
-    case "GRID":
+    case "MATRIX":
       return (
-        <GridQuestion question={question} answer={answer} onChange={onChange} />
+        <MatrixQuestion question={question} answer={answer} onChange={onChange} />
       );
-    case "LIST_RANKING":
+    case "RANKING":
       return (
-        <RankingQuestion
-          question={question}
-          answer={answer}
-          onChange={onChange}
-        />
+        <RankingQuestion question={question} answer={answer} onChange={onChange} />
       );
-    case "COMPARISON":
+    case "SENTIMENT":
       return (
-        <ComparisonQuestion
-          question={question}
-          answer={answer}
-          onChange={onChange}
-        />
+        <SentimentQuestion question={question} answer={answer} onChange={onChange} />
       );
-    case "AD_MOCK_UP":
+    case "REACTION":
       return (
-        <AdMockUpQuestion
-          question={question}
-          answer={answer}
-          onChange={onChange}
-        />
-      );
-    case "OVERALL_REACTION":
-      return (
-        <OverallReactionQuestion
-          question={question}
-          answer={answer}
-          onChange={onChange}
-        />
-      );
-    case "SELECT_FROM_SET":
-      return (
-        <SelectFromSetQuestion
-          question={question}
-          answer={answer}
-          onChange={onChange}
-        />
-      );
-    case "MULTI_AD":
-      return (
-        <MultiAdQuestion
-          question={question}
-          answer={answer}
-          onChange={onChange}
-        />
+        <ReactionQuestion question={question} answer={answer} onChange={onChange} />
       );
     case "VIDEO_DIAL":
       // Handled directly in QuestionRenderer (has its own submit flow)
@@ -212,10 +156,10 @@ function QuestionBody({
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// List types (STANDARD_LIST, WORD_LIST, IMAGE_LIST)
+// Multiple Choice (list, bubbles, images display styles)
 // ─────────────────────────────────────────────────────────────────────────────
 
-function ListQuestion({
+function MultipleChoiceQuestion({
   question,
   answer,
   onChange,
@@ -227,6 +171,7 @@ function ListQuestion({
   const selected = (answer as { selected: string[] })?.selected || [];
   const maxSelect = (question.config.maxSelect as number) || 1;
   const isMulti = maxSelect > 1;
+  const displayStyle = (question.config.displayStyle as string) || "list";
 
   const toggle = (value: string) => {
     if (isMulti) {
@@ -239,6 +184,68 @@ function ListQuestion({
     }
   };
 
+  if (displayStyle === "bubbles") {
+    return (
+      <div className="space-y-2">
+        {isMulti && (
+          <p className="text-xs text-muted-foreground">
+            Select up to {maxSelect}
+          </p>
+        )}
+        <div className="flex flex-wrap gap-2">
+          {question.options.map((opt) => (
+            <button
+              key={opt.id}
+              onClick={() => toggle(opt.value)}
+              className={`rounded-full px-4 py-2 text-sm border transition-colors ${
+                selected.includes(opt.value)
+                  ? "border-primary bg-primary/10 text-primary font-medium"
+                  : "border-border text-foreground hover:border-primary/30"
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (displayStyle === "images") {
+    return (
+      <div className="space-y-2">
+        {isMulti && (
+          <p className="text-xs text-muted-foreground">
+            Select up to {maxSelect}
+          </p>
+        )}
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          {question.options.map((opt) => (
+            <button
+              key={opt.id}
+              onClick={() => toggle(opt.value)}
+              className={`rounded-lg border p-2 transition-colors ${
+                selected.includes(opt.value)
+                  ? "border-primary bg-primary/5 ring-1 ring-primary"
+                  : "border-border hover:border-primary/30"
+              }`}
+            >
+              {opt.imageUrl && (
+                <img
+                  src={opt.imageUrl}
+                  alt=""
+                  className="w-full h-24 object-cover rounded mb-2"
+                />
+              )}
+              <span className="text-sm text-foreground">{opt.label}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // Default: list display
   return (
     <div className="space-y-2">
       {isMulti && (
@@ -256,16 +263,7 @@ function ListQuestion({
               : "border-border hover:border-primary/30 text-foreground"
           }`}
         >
-          <div className="flex items-center gap-3">
-            {question.type === "IMAGE_LIST" && opt.imageUrl && (
-              <img
-                src={opt.imageUrl}
-                alt=""
-                className="w-12 h-12 object-cover rounded"
-              />
-            )}
-            <span className="text-sm">{opt.label}</span>
-          </div>
+          <span className="text-sm">{opt.label}</span>
         </button>
       ))}
     </div>
@@ -319,10 +317,10 @@ function LikertQuestion({
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Multi-item Likert
+// Multi-Item Rating
 // ─────────────────────────────────────────────────────────────────────────────
 
-function MultiLikertQuestion({
+function MultiItemRatingQuestion({
   question,
   answer,
   onChange,
@@ -424,10 +422,10 @@ function NumericQuestion({
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Write-in / Creative Copy
+// Open Text
 // ─────────────────────────────────────────────────────────────────────────────
 
-function WriteInQuestion({
+function OpenTextQuestion({
   question,
   answer,
   onChange,
@@ -436,31 +434,25 @@ function WriteInQuestion({
   answer: unknown;
   onChange: (value: unknown) => void;
 }) {
-  const isCreativeCopy = question.type === "CREATIVE_COPY";
-  const text = isCreativeCopy
-    ? ((answer as { annotations: string[] })?.annotations?.[0] || "")
-    : ((answer as { text: string })?.text || "");
+  const text = (answer as { text: string })?.text || "";
+  const placeholder = (question.config.placeholder as string) || "Type your response...";
 
   return (
     <textarea
       value={text}
-      onChange={(e) =>
-        isCreativeCopy
-          ? onChange({ annotations: [e.target.value] })
-          : onChange({ text: e.target.value })
-      }
+      onChange={(e) => onChange({ text: e.target.value })}
       rows={4}
       className="w-full rounded-lg border border-input bg-background px-4 py-3 text-sm resize-none"
-      placeholder="Type your response..."
+      placeholder={placeholder}
     />
   );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// A/B comparison (TEXT_AB, IMAGE_AB)
+// A/B Test
 // ─────────────────────────────────────────────────────────────────────────────
 
-function ABQuestion({
+function ABTestQuestion({
   question,
   answer,
   onChange,
@@ -471,6 +463,7 @@ function ABQuestion({
 }) {
   const selected = (answer as { selected: string })?.selected || "";
   const options = question.options;
+  const hasImages = options.some((opt) => opt.imageUrl);
 
   if (options.length < 2) return null;
 
@@ -486,7 +479,7 @@ function ABQuestion({
               : "border-border hover:border-primary/30"
           }`}
         >
-          {question.type === "IMAGE_AB" && opt.imageUrl && (
+          {hasImages && opt.imageUrl && (
             <img
               src={opt.imageUrl}
               alt=""
@@ -503,10 +496,10 @@ function ABQuestion({
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Grid (matrix)
+// Matrix
 // ─────────────────────────────────────────────────────────────────────────────
 
-function GridQuestion({
+function MatrixQuestion({
   question,
   answer,
   onChange,
@@ -567,7 +560,7 @@ function GridQuestion({
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// List Ranking
+// Ranking
 // ─────────────────────────────────────────────────────────────────────────────
 
 function RankingQuestion({
@@ -645,10 +638,10 @@ function RankingQuestion({
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Comparison
+// Sentiment (configurable attributes — replaces Ad Mock-Up + Multi-Ad)
 // ─────────────────────────────────────────────────────────────────────────────
 
-function ComparisonQuestion({
+function SentimentQuestion({
   question,
   answer,
   onChange,
@@ -657,120 +650,64 @@ function ComparisonQuestion({
   answer: unknown;
   onChange: (value: unknown) => void;
 }) {
-  const values = (answer as { values: Record<string, string> })?.values || {};
-  const options = question.options;
+  const current = (answer as { ratings: Record<string, string[]> }) || {
+    ratings: {},
+  };
+  const ratings = current.ratings || {};
+  const attributes =
+    (question.config.attributes as string[]) || ["Positive", "Negative"];
 
-  // Comparison pairs: show options in pairs for side-by-side comparison
-  return (
-    <div className="space-y-3">
-      {options.map((opt) => (
-        <div
-          key={opt.id}
-          className="flex items-center gap-3 rounded-lg border border-border p-3"
-        >
-          <span className="text-sm text-foreground flex-1">{opt.label}</span>
-          <select
-            value={values[opt.value] || ""}
-            onChange={(e) =>
-              onChange({ values: { ...values, [opt.value]: e.target.value } })
-            }
-            className="rounded-md border border-input bg-background px-2 py-1.5 text-sm"
-          >
-            <option value="">Rate...</option>
-            {[1, 2, 3, 4, 5].map((n) => (
-              <option key={n} value={String(n)}>
-                {n}
-              </option>
-            ))}
-          </select>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Ad Mock-Up
-// ─────────────────────────────────────────────────────────────────────────────
-
-function AdMockUpQuestion({
-  question,
-  answer,
-  onChange,
-}: {
-  question: SurveyQuestion;
-  answer: unknown;
-  onChange: (value: unknown) => void;
-}) {
-  const current = (answer as {
-    positive: string[];
-    negative: string[];
-    posAnnotation?: string;
-    negAnnotation?: string;
-  }) || { positive: [], negative: [] };
-
-  const toggleItem = (
-    list: "positive" | "negative",
-    value: string
-  ) => {
-    const arr = current[list] || [];
+  const toggleItem = (attribute: string, value: string) => {
+    const arr = ratings[attribute] || [];
     const updated = arr.includes(value)
       ? arr.filter((v) => v !== value)
       : [...arr, value];
-    onChange({ ...current, [list]: updated });
+    onChange({ ratings: { ...ratings, [attribute]: updated } });
   };
+
+  // Color palette for attributes
+  const attrColors = [
+    { border: "border-green-500", bg: "bg-green-50", text: "text-green-700", hover: "hover:border-green-300" },
+    { border: "border-red-500", bg: "bg-red-50", text: "text-red-700", hover: "hover:border-red-300" },
+    { border: "border-blue-500", bg: "bg-blue-50", text: "text-blue-700", hover: "hover:border-blue-300" },
+    { border: "border-amber-500", bg: "bg-amber-50", text: "text-amber-700", hover: "hover:border-amber-300" },
+    { border: "border-purple-500", bg: "bg-purple-50", text: "text-purple-700", hover: "hover:border-purple-300" },
+  ];
 
   return (
     <div className="space-y-4">
-      <div>
-        <p className="text-sm font-medium text-foreground mb-2">
-          What did you like?
-        </p>
-        <div className="flex flex-wrap gap-2">
-          {question.options.map((opt) => (
-            <button
-              key={opt.id}
-              onClick={() => toggleItem("positive", opt.value)}
-              className={`rounded-full px-3 py-1.5 text-xs border transition-colors ${
-                current.positive?.includes(opt.value)
-                  ? "border-green-500 bg-green-50 text-green-700"
-                  : "border-border text-foreground hover:border-green-300"
-              }`}
-            >
-              {opt.label}
-            </button>
-          ))}
-        </div>
-      </div>
-      <div>
-        <p className="text-sm font-medium text-foreground mb-2">
-          What did you dislike?
-        </p>
-        <div className="flex flex-wrap gap-2">
-          {question.options.map((opt) => (
-            <button
-              key={opt.id}
-              onClick={() => toggleItem("negative", opt.value)}
-              className={`rounded-full px-3 py-1.5 text-xs border transition-colors ${
-                current.negative?.includes(opt.value)
-                  ? "border-red-500 bg-red-50 text-red-700"
-                  : "border-border text-foreground hover:border-red-300"
-              }`}
-            >
-              {opt.label}
-            </button>
-          ))}
-        </div>
-      </div>
+      {attributes.map((attr, attrIdx) => {
+        const colors = attrColors[attrIdx % attrColors.length];
+        return (
+          <div key={attr}>
+            <p className="text-sm font-medium text-foreground mb-2">{attr}</p>
+            <div className="flex flex-wrap gap-2">
+              {question.options.map((opt) => (
+                <button
+                  key={opt.id}
+                  onClick={() => toggleItem(attr, opt.value)}
+                  className={`rounded-full px-3 py-1.5 text-xs border transition-colors ${
+                    ratings[attr]?.includes(opt.value)
+                      ? `${colors.border} ${colors.bg} ${colors.text}`
+                      : `border-border text-foreground ${colors.hover}`
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Overall Reaction
+// Reaction (rating + multi-select — replaces Overall Reaction)
 // ─────────────────────────────────────────────────────────────────────────────
 
-function OverallReactionQuestion({
+function ReactionQuestion({
   question,
   answer,
   onChange,
@@ -837,114 +774,6 @@ function OverallReactionQuestion({
           </div>
         </div>
       )}
-    </div>
-  );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Select From Set
-// ─────────────────────────────────────────────────────────────────────────────
-
-function SelectFromSetQuestion({
-  question,
-  answer,
-  onChange,
-}: {
-  question: SurveyQuestion;
-  answer: unknown;
-  onChange: (value: unknown) => void;
-}) {
-  const selected =
-    (answer as { selected: Record<string, string> })?.selected || {};
-  const sets =
-    (question.config.sets as { id: string; label: string; options: string[] }[]) ||
-    [];
-
-  return (
-    <div className="space-y-4">
-      {sets.map((set) => (
-        <div key={set.id}>
-          <p className="text-sm font-medium text-foreground mb-2">
-            {set.label}
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {set.options.map((opt) => (
-              <button
-                key={opt}
-                onClick={() =>
-                  onChange({
-                    selected: { ...selected, [set.id]: opt },
-                  })
-                }
-                className={`rounded-lg border px-3 py-2 text-sm transition-colors ${
-                  selected[set.id] === opt
-                    ? "border-primary bg-primary/5 text-foreground"
-                    : "border-border hover:border-primary/30 text-foreground"
-                }`}
-              >
-                {opt}
-              </button>
-            ))}
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Multi-Ad
-// ─────────────────────────────────────────────────────────────────────────────
-
-function MultiAdQuestion({
-  question,
-  answer,
-  onChange,
-}: {
-  question: SurveyQuestion;
-  answer: unknown;
-  onChange: (value: unknown) => void;
-}) {
-  const selected =
-    (answer as { selected: Record<string, string[]> })?.selected || {};
-
-  // Multi-Ad: each option can be assigned multiple attribute tags
-  const toggleAttribute = (optionValue: string, attr: string) => {
-    const current = selected[optionValue] || [];
-    const updated = current.includes(attr)
-      ? current.filter((a) => a !== attr)
-      : [...current, attr];
-    onChange({
-      selected: { ...selected, [optionValue]: updated },
-    });
-  };
-
-  const attributes = ["Memorable", "Convincing", "Relevant", "Unique"];
-
-  return (
-    <div className="space-y-4">
-      {question.options.map((opt) => (
-        <div key={opt.id} className="rounded-lg border border-border p-3">
-          <p className="text-sm font-medium text-foreground mb-2">
-            {opt.label}
-          </p>
-          <div className="flex flex-wrap gap-1">
-            {attributes.map((attr) => (
-              <button
-                key={attr}
-                onClick={() => toggleAttribute(opt.value, attr)}
-                className={`rounded-full px-2.5 py-1 text-xs border transition-colors ${
-                  selected[opt.value]?.includes(attr)
-                    ? "border-primary bg-primary/10 text-primary"
-                    : "border-border text-muted-foreground hover:border-primary/30"
-                }`}
-              >
-                {attr}
-              </button>
-            ))}
-          </div>
-        </div>
-      ))}
     </div>
   );
 }

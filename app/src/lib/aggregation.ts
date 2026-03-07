@@ -166,14 +166,7 @@ export async function aggregateQuestion(
   }
 
   switch (questionType) {
-    case "STANDARD_LIST":
-    case "WORD_LIST":
-    case "IMAGE_LIST":
-    case "AD_MOCK_UP":
-    case "OVERALL_REACTION":
-    case "SELECT_FROM_SET":
-    case "MULTI_AD":
-    case "COMPARISON": {
+    case "MULTIPLE_CHOICE": {
       const counts: Record<string, number> = {};
       for (const a of answers) {
         const val = a.value as Record<string, unknown>;
@@ -193,7 +186,7 @@ export async function aggregateQuestion(
     }
 
     case "LIKERT":
-    case "MULTI_LIKERT": {
+    case "MULTI_ITEM_RATING": {
       const values: number[] = answers.map((a) => {
         const val = a.value as Record<string, unknown>;
         return Number(val.value ?? 0);
@@ -242,19 +235,18 @@ export async function aggregateQuestion(
       };
     }
 
-    case "WRITE_IN":
-    case "CREATIVE_COPY": {
+    case "OPEN_TEXT": {
       const responses = answers.map((a) => {
         const val = a.value as Record<string, unknown>;
         return {
-          text: String(val.text || (val.annotations as string[])?.[0] || ""),
+          text: String(val.text || ""),
           answeredAt: a.answeredAt,
         };
       });
       return { type: "write_in", data: { responses, total: n } };
     }
 
-    case "LIST_RANKING": {
+    case "RANKING": {
       const rankSums: Record<string, { total: number; count: number }> = {};
       for (const a of answers) {
         const val = a.value as Record<string, unknown>;
@@ -276,7 +268,7 @@ export async function aggregateQuestion(
       return { type: "ranking", data: { items } };
     }
 
-    case "GRID": {
+    case "MATRIX": {
       const cells: Record<string, Record<string, number>> = {};
       for (const a of answers) {
         const val = a.value as Record<string, unknown>;
@@ -290,8 +282,7 @@ export async function aggregateQuestion(
       return { type: "grid", data: { cells, n } };
     }
 
-    case "TEXT_AB":
-    case "IMAGE_AB": {
+    case "AB_TEST": {
       const counts: Record<string, number> = {};
       for (const a of answers) {
         const val = a.value as Record<string, unknown>;
@@ -306,6 +297,56 @@ export async function aggregateQuestion(
         }))
         .sort((a, b) => b.count - a.count);
       return { type: "ab", data };
+    }
+
+    case "SENTIMENT": {
+      // Aggregate per-attribute selections into counts
+      const counts: Record<string, number> = {};
+      for (const a of answers) {
+        const val = a.value as Record<string, unknown>;
+        const ratings = val.ratings as Record<string, string[]>;
+        if (!ratings) continue;
+        for (const [attr, selected] of Object.entries(ratings)) {
+          for (const s of selected) {
+            const key = `${attr}:${s}`;
+            counts[key] = (counts[key] || 0) + 1;
+          }
+        }
+      }
+      const data: ListResult[] = Object.entries(counts)
+        .map(([value, count]) => ({
+          value,
+          count,
+          percentage: Math.round((count / n) * 100),
+        }))
+        .sort((a, b) => b.count - a.count);
+      return { type: "list", data };
+    }
+
+    case "REACTION": {
+      // Reaction has both a rating (likert) and selected options (list)
+      // Return it as likert for the rating
+      const values: number[] = answers.map((a) => {
+        const val = a.value as Record<string, unknown>;
+        return Number(val.rating ?? 0);
+      });
+      values.sort((a, b) => a - b);
+
+      const distribution: Record<number, number> = {};
+      for (const v of values) {
+        distribution[v] = (distribution[v] || 0) + 1;
+      }
+
+      const mean = values.reduce((s, v) => s + v, 0) / values.length;
+      const median =
+        values.length % 2 === 0
+          ? (values[values.length / 2 - 1] + values[values.length / 2]) / 2
+          : values[Math.floor(values.length / 2)];
+
+      return {
+        type: "likert",
+        data: { distribution, mean: Math.round(mean * 100) / 100, median, n },
+      };
     }
 
     case "VIDEO_DIAL": {

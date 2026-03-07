@@ -10,23 +10,16 @@ import { QuestionEditor } from "./QuestionEditor";
 
 const TYPE_LABELS: Record<string, string> = {
   VIDEO_DIAL: "Video Dial",
-  STANDARD_LIST: "Standard List",
-  WORD_LIST: "Word List",
-  IMAGE_LIST: "Image List",
+  MULTIPLE_CHOICE: "Multiple Choice",
   LIKERT: "Likert Scale",
-  MULTI_LIKERT: "Multi-Item Likert",
+  OPEN_TEXT: "Open Text",
   NUMERIC: "Numeric",
-  WRITE_IN: "Write-In",
-  TEXT_AB: "Text A/B",
-  IMAGE_AB: "Image A/B",
-  LIST_RANKING: "List Ranking",
-  GRID: "Grid",
-  COMPARISON: "Comparison",
-  AD_MOCK_UP: "Ad Mock-Up",
-  OVERALL_REACTION: "Overall Reaction",
-  SELECT_FROM_SET: "Select From Set",
-  MULTI_AD: "Multi-Ad",
-  CREATIVE_COPY: "Creative Copy",
+  AB_TEST: "A/B Test",
+  RANKING: "Ranking",
+  MATRIX: "Matrix",
+  MULTI_ITEM_RATING: "Multi-Item Rating",
+  SENTIMENT: "Sentiment",
+  REACTION: "Reaction",
 };
 
 const PHASE_COLORS: Record<string, string> = {

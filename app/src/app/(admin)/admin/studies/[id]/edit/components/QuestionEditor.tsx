@@ -16,35 +16,27 @@ const PHASE_OPTIONS = [
 
 // Question types that use options
 const OPTION_TYPES = new Set([
-  "STANDARD_LIST",
-  "WORD_LIST",
-  "IMAGE_LIST",
-  "TEXT_AB",
-  "IMAGE_AB",
-  "LIST_RANKING",
-  "COMPARISON",
-  "AD_MOCK_UP",
-  "OVERALL_REACTION",
+  "MULTIPLE_CHOICE",
+  "AB_TEST",
+  "RANKING",
+  "SENTIMENT",
+  "REACTION",
 ]);
 
 // Types that need likert config
-const LIKERT_TYPES = new Set(["LIKERT", "MULTI_LIKERT", "OVERALL_REACTION"]);
+const LIKERT_TYPES = new Set(["LIKERT", "MULTI_ITEM_RATING", "REACTION"]);
 
 // Types that need numeric config
 const NUMERIC_TYPES = new Set(["NUMERIC"]);
 
-// Types that need grid config
-const GRID_TYPES = new Set(["GRID"]);
+// Types that need matrix (grid) config
+const MATRIX_TYPES = new Set(["MATRIX"]);
 
 // Types that support media attachments
 const MEDIA_TYPES = new Set([
   "VIDEO_DIAL",
-  "IMAGE_LIST",
-  "IMAGE_AB",
-  "AD_MOCK_UP",
-  "MULTI_AD",
-  "COMPARISON",
-  "SELECT_FROM_SET",
+  "AB_TEST",
+  "SENTIMENT",
 ]);
 
 export function QuestionEditor({
@@ -228,6 +220,10 @@ export function QuestionEditor({
       </div>
 
       {/* Type-specific config */}
+      {question.type === "MULTIPLE_CHOICE" && (
+        <MultipleChoiceConfig config={config} onUpdate={updateConfig} isLocked={isLocked} />
+      )}
+
       {LIKERT_TYPES.has(question.type) && (
         <LikertConfig config={config} onUpdate={updateConfig} isLocked={isLocked} />
       )}
@@ -236,8 +232,12 @@ export function QuestionEditor({
         <NumericConfig config={config} onUpdate={updateConfig} isLocked={isLocked} />
       )}
 
-      {GRID_TYPES.has(question.type) && (
-        <GridConfig config={config} onUpdate={updateConfig} isLocked={isLocked} />
+      {MATRIX_TYPES.has(question.type) && (
+        <MatrixConfig config={config} onUpdate={updateConfig} isLocked={isLocked} />
+      )}
+
+      {question.type === "SENTIMENT" && (
+        <SentimentConfig config={config} onUpdate={updateConfig} isLocked={isLocked} />
       )}
 
       {question.type === "VIDEO_DIAL" && (
@@ -334,6 +334,71 @@ export function QuestionEditor({
 // ─────────────────────────────────────────────────────────────────────────────
 // Type-specific config components
 // ─────────────────────────────────────────────────────────────────────────────
+
+function MultipleChoiceConfig({
+  config,
+  onUpdate,
+  isLocked,
+}: {
+  config: Record<string, unknown>;
+  onUpdate: (key: string, value: unknown) => void;
+  isLocked: boolean;
+}) {
+  const displayStyle = (config.displayStyle as string) || "list";
+
+  return (
+    <div className="space-y-2">
+      <label className="text-xs font-medium text-muted-foreground block">
+        Display Style
+      </label>
+      <div className="flex gap-1">
+        {[
+          { value: "list", label: "List" },
+          { value: "bubbles", label: "Bubbles" },
+          { value: "images", label: "Images" },
+        ].map((style) => (
+          <button
+            key={style.value}
+            onClick={() => onUpdate("displayStyle", style.value)}
+            disabled={isLocked}
+            className={`px-3 py-1.5 text-xs rounded-md border transition-colors ${
+              displayStyle === style.value
+                ? "border-primary bg-primary/10 text-primary font-medium"
+                : "border-border text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            {style.label}
+          </button>
+        ))}
+      </div>
+      <div className="flex items-center gap-3">
+        <label className="text-xs">
+          Max select:
+          <input
+            type="number"
+            value={(config.maxSelect as number) ?? ""}
+            onChange={(e) =>
+              onUpdate("maxSelect", e.target.value ? Number(e.target.value) : undefined)
+            }
+            disabled={isLocked}
+            min={1}
+            className="ml-1 w-16 rounded border border-input bg-background px-2 py-1 text-sm"
+          />
+        </label>
+        <label className="flex items-center gap-1.5 text-xs">
+          <input
+            type="checkbox"
+            checked={(config.randomizeOptions as boolean) || false}
+            onChange={(e) => onUpdate("randomizeOptions", e.target.checked)}
+            disabled={isLocked}
+            className="rounded"
+          />
+          Randomize
+        </label>
+      </div>
+    </div>
+  );
+}
 
 function LikertConfig({
   config,
@@ -460,7 +525,7 @@ function NumericConfig({
   );
 }
 
-function GridConfig({
+function MatrixConfig({
   config,
   onUpdate,
   isLocked,
@@ -558,6 +623,71 @@ function GridConfig({
           </button>
         )}
       </div>
+    </div>
+  );
+}
+
+function SentimentConfig({
+  config,
+  onUpdate,
+  isLocked,
+}: {
+  config: Record<string, unknown>;
+  onUpdate: (key: string, value: unknown) => void;
+  isLocked: boolean;
+}) {
+  const attributes = (config.attributes as string[]) || ["Positive", "Negative"];
+
+  const updateAttribute = (index: number, value: string) => {
+    const updated = [...attributes];
+    updated[index] = value;
+    onUpdate("attributes", updated);
+  };
+
+  const removeAttribute = (index: number) => {
+    onUpdate("attributes", attributes.filter((_, i) => i !== index));
+  };
+
+  const addAttribute = () => {
+    onUpdate("attributes", [...attributes, ""]);
+  };
+
+  return (
+    <div className="space-y-2">
+      <label className="text-xs font-medium text-muted-foreground block">
+        Sentiment Attributes
+      </label>
+      <p className="text-[10px] text-muted-foreground">
+        Respondents will tag options with each attribute (e.g. Positive, Negative, Memorable).
+      </p>
+      {attributes.map((attr, i) => (
+        <div key={i} className="flex items-center gap-2">
+          <input
+            type="text"
+            value={attr}
+            onChange={(e) => updateAttribute(i, e.target.value)}
+            disabled={isLocked}
+            placeholder="Attribute name"
+            className="flex-1 rounded-md border border-input bg-background px-2 py-1 text-sm"
+          />
+          {!isLocked && attributes.length > 1 && (
+            <button
+              onClick={() => removeAttribute(i)}
+              className="text-xs text-muted-foreground hover:text-destructive"
+            >
+              ×
+            </button>
+          )}
+        </div>
+      ))}
+      {!isLocked && attributes.length < 10 && (
+        <button
+          onClick={addAttribute}
+          className="text-xs text-primary hover:underline"
+        >
+          + Add attribute
+        </button>
+      )}
     </div>
   );
 }

@@ -170,14 +170,7 @@ function formatAnswerForCsv(
   type: string
 ): string {
   switch (type) {
-    case "STANDARD_LIST":
-    case "WORD_LIST":
-    case "IMAGE_LIST":
-    case "AD_MOCK_UP":
-    case "OVERALL_REACTION":
-    case "SELECT_FROM_SET":
-    case "MULTI_AD":
-    case "COMPARISON": {
+    case "MULTIPLE_CHOICE": {
       const selected = val.selected;
       return Array.isArray(selected)
         ? selected.join("; ")
@@ -186,29 +179,43 @@ function formatAnswerForCsv(
     case "LIKERT":
     case "NUMERIC":
       return String(val.value ?? "");
-    case "MULTI_LIKERT": {
-      const ratings = val.ratings as Record<string, number>;
-      if (!ratings) return "";
-      return Object.entries(ratings)
+    case "MULTI_ITEM_RATING": {
+      const values = val.values as Record<string, number>;
+      if (!values) return "";
+      return Object.entries(values)
         .map(([k, v]) => `${k}:${v}`)
         .join("; ");
     }
-    case "WRITE_IN":
-    case "CREATIVE_COPY":
+    case "OPEN_TEXT":
       return String(val.text || "");
-    case "TEXT_AB":
-    case "IMAGE_AB":
+    case "AB_TEST":
       return String(val.selected || "");
-    case "GRID": {
+    case "MATRIX": {
       const values = val.values as Record<string, string>;
       if (!values) return "";
       return Object.entries(values)
         .map(([r, c]) => `${r}:${c}`)
         .join("; ");
     }
-    case "LIST_RANKING": {
+    case "RANKING": {
       const ranked = val.ranked;
       return Array.isArray(ranked) ? ranked.join(" > ") : "";
+    }
+    case "SENTIMENT": {
+      const ratings = val.ratings as Record<string, string[]>;
+      if (!ratings) return "";
+      return Object.entries(ratings)
+        .map(([attr, items]) => `${attr}:[${items.join(",")}]`)
+        .join("; ");
+    }
+    case "REACTION": {
+      const rating = val.rating;
+      const selected = val.selected;
+      const parts = [`Rating:${rating}`];
+      if (Array.isArray(selected) && selected.length > 0) {
+        parts.push(`Selected:${selected.join(",")}`);
+      }
+      return parts.join("; ");
     }
     default:
       return JSON.stringify(val);

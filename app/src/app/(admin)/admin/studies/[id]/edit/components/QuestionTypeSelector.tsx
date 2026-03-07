@@ -8,38 +8,26 @@ const QUESTION_TYPES = [
     category: "Core",
     types: [
       { value: "VIDEO_DIAL", label: "Video Dial", desc: "Real-time slider feedback during video playback" },
-      { value: "STANDARD_LIST", label: "Standard List", desc: "Multiple choice with text options" },
+      { value: "MULTIPLE_CHOICE", label: "Multiple Choice", desc: "Select from text, bubble, or image options" },
       { value: "LIKERT", label: "Likert Scale", desc: "Single-item rating scale" },
-      { value: "WRITE_IN", label: "Write-In", desc: "Open-ended text response" },
       { value: "NUMERIC", label: "Numeric", desc: "Number input with min/max" },
+      { value: "OPEN_TEXT", label: "Open Text", desc: "Free-form text response" },
     ],
   },
   {
-    category: "List Variants",
+    category: "Structured",
     types: [
-      { value: "WORD_LIST", label: "Word List", desc: "Select from a list of words/phrases" },
-      { value: "IMAGE_LIST", label: "Image List", desc: "Select from image options" },
-      { value: "LIST_RANKING", label: "List Ranking", desc: "Drag to rank options in order" },
+      { value: "AB_TEST", label: "A/B Test", desc: "Compare two options side by side" },
+      { value: "RANKING", label: "Ranking", desc: "Tap to rank options in order" },
+      { value: "MATRIX", label: "Matrix", desc: "Row-by-column grid selection" },
+      { value: "MULTI_ITEM_RATING", label: "Multi-Item Rating", desc: "Rate multiple items on same scale" },
     ],
   },
   {
-    category: "Comparison",
+    category: "Specialty",
     types: [
-      { value: "TEXT_AB", label: "Text A/B", desc: "Compare two text options" },
-      { value: "IMAGE_AB", label: "Image A/B", desc: "Compare two images" },
-      { value: "COMPARISON", label: "Statement Comparison", desc: "Match statements to options" },
-    ],
-  },
-  {
-    category: "Advanced",
-    types: [
-      { value: "MULTI_LIKERT", label: "Multi-Item Likert", desc: "Rate multiple items on same scale" },
-      { value: "GRID", label: "Grid", desc: "Row-by-column matrix selection" },
-      { value: "AD_MOCK_UP", label: "Ad Mock-Up", desc: "Positive/negative image selection" },
-      { value: "OVERALL_REACTION", label: "Overall Reaction", desc: "Rating + selection + annotation" },
-      { value: "SELECT_FROM_SET", label: "Select From Set", desc: "Choose one from each option set" },
-      { value: "MULTI_AD", label: "Multi-Ad", desc: "Multiple selection from image sets" },
-      { value: "CREATIVE_COPY", label: "Creative Copy", desc: "Annotate text content" },
+      { value: "SENTIMENT", label: "Sentiment", desc: "Tag options with configurable attributes" },
+      { value: "REACTION", label: "Reaction", desc: "Overall rating plus multi-select feedback" },
     ],
   },
 ];

@@ -6,23 +6,16 @@ import { z } from "zod";
 
 export const questionTypeEnum = z.enum([
   "VIDEO_DIAL",
-  "STANDARD_LIST",
-  "WORD_LIST",
-  "IMAGE_LIST",
+  "MULTIPLE_CHOICE",
   "LIKERT",
-  "MULTI_LIKERT",
+  "OPEN_TEXT",
   "NUMERIC",
-  "WRITE_IN",
-  "TEXT_AB",
-  "IMAGE_AB",
-  "LIST_RANKING",
-  "GRID",
-  "COMPARISON",
-  "AD_MOCK_UP",
-  "OVERALL_REACTION",
-  "SELECT_FROM_SET",
-  "MULTI_AD",
-  "CREATIVE_COPY",
+  "AB_TEST",
+  "RANKING",
+  "MATRIX",
+  "MULTI_ITEM_RATING",
+  "SENTIMENT",
+  "REACTION",
 ]);
 
 export const questionPhaseEnum = z.enum([
@@ -41,13 +34,8 @@ const rowColumnItem = z.object({
   label: z.string().min(1).max(500),
 });
 
-const setItem = z.object({
-  id: z.string().min(1),
-  label: z.string().min(1).max(500),
-  options: z.array(z.string()).min(1),
-});
-
-const baseListConfig = z.object({
+const multipleChoiceConfig = z.object({
+  displayStyle: z.enum(["list", "bubbles", "images"]).default("list"),
   minSelect: z.number().int().min(0).optional(),
   maxSelect: z.number().int().min(1).optional(),
   randomizeOptions: z.boolean().optional(),
@@ -60,8 +48,9 @@ const likertConfig = z.object({
     .optional(),
 });
 
-const multiLikertConfig = likertConfig.extend({
-  rows: z.array(rowColumnItem).min(1).max(50),
+const openTextConfig = z.object({
+  maxLength: z.number().int().max(10000).optional(),
+  placeholder: z.string().max(500).optional(),
 });
 
 const numericConfig = z.object({
@@ -70,42 +59,37 @@ const numericConfig = z.object({
   step: z.number().positive().optional(),
 });
 
-const gridConfig = z.object({
+const abTestConfig = z.object({
+  allowAnnotation: z.boolean().optional(),
+  maxAnnotationLength: z.number().int().max(5000).optional(),
+});
+
+const rankingConfig = z.object({
+  maxRank: z.number().int().min(1).optional(),
+});
+
+const matrixConfig = z.object({
   rows: z.array(rowColumnItem).min(1).max(50),
   columns: z.array(rowColumnItem).min(2).max(20),
 });
 
-const comparisonConfig = z.object({
+const multiItemRatingConfig = likertConfig.extend({
   rows: z.array(rowColumnItem).min(1).max(50),
 });
 
-const abConfig = z.object({
+const sentimentConfig = z.object({
+  attributes: z.array(z.string().min(1).max(100)).min(1).max(10).default(["Positive", "Negative"]),
+  maxPerAttribute: z.number().int().min(1).optional(),
   allowAnnotation: z.boolean().optional(),
   maxAnnotationLength: z.number().int().max(5000).optional(),
 });
 
-const adMockUpConfig = z.object({
-  allowAnnotation: z.boolean().optional(),
-  maxAnnotationLength: z.number().int().max(5000).optional(),
-  maxPositive: z.number().int().min(1).optional(),
-  maxNegative: z.number().int().min(1).optional(),
-});
-
-const overallReactionConfig = z.object({
+const reactionConfig = z.object({
   likertScale: z.number().int().min(3).max(11).default(10),
   likertLabels: z
     .object({ low: z.string().max(100), high: z.string().max(100) })
     .optional(),
   allowAnnotation: z.boolean().optional(),
-  maxSelect: z.number().int().min(1).optional(),
-});
-
-const selectFromSetConfig = z.object({
-  sets: z.array(setItem).min(1).max(20),
-});
-
-const multiAdConfig = z.object({
-  sets: z.array(setItem).min(1).max(20),
   maxSelect: z.number().int().min(1).optional(),
 });
 
@@ -123,19 +107,6 @@ const videoDialConfig = z.object({
     .optional(),
 });
 
-const writeInConfig = z.object({
-  maxLength: z.number().int().max(10000).optional(),
-  placeholder: z.string().max(500).optional(),
-});
-
-const creativeCopyConfig = z.object({
-  maxAnnotationLength: z.number().int().max(5000).optional(),
-});
-
-const listRankingConfig = z.object({
-  maxRank: z.number().int().min(1).optional(),
-});
-
 // General config schema — accepts any valid config
 // Use record to satisfy Prisma's InputJsonValue type
 export const questionConfigSchema = z.record(z.string(), z.unknown());
@@ -145,24 +116,17 @@ export const questionConfigSchema = z.record(z.string(), z.unknown());
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const configSchemaByType: Record<string, z.ZodType> = {
-  STANDARD_LIST: baseListConfig,
-  WORD_LIST: baseListConfig,
-  IMAGE_LIST: baseListConfig,
-  LIKERT: likertConfig,
-  MULTI_LIKERT: multiLikertConfig,
-  NUMERIC: numericConfig,
-  WRITE_IN: writeInConfig,
-  CREATIVE_COPY: creativeCopyConfig,
-  TEXT_AB: abConfig,
-  IMAGE_AB: abConfig,
-  GRID: gridConfig,
-  COMPARISON: comparisonConfig,
-  AD_MOCK_UP: adMockUpConfig,
-  OVERALL_REACTION: overallReactionConfig,
-  SELECT_FROM_SET: selectFromSetConfig,
-  MULTI_AD: multiAdConfig,
-  LIST_RANKING: listRankingConfig,
   VIDEO_DIAL: videoDialConfig,
+  MULTIPLE_CHOICE: multipleChoiceConfig,
+  LIKERT: likertConfig,
+  OPEN_TEXT: openTextConfig,
+  NUMERIC: numericConfig,
+  AB_TEST: abTestConfig,
+  RANKING: rankingConfig,
+  MATRIX: matrixConfig,
+  MULTI_ITEM_RATING: multiItemRatingConfig,
+  SENTIMENT: sentimentConfig,
+  REACTION: reactionConfig,
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
