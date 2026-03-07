@@ -4,6 +4,7 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import type { QuestionData } from "./StudyEditor";
 import { Button } from "@/components/ui/button";
+import { QuestionEditor } from "./QuestionEditor";
 
 const TYPE_LABELS: Record<string, string> = {
   VIDEO_DIAL: "Video Dial",
@@ -39,6 +40,7 @@ export function SortableQuestion({
   isLocked,
   onSelect,
   onDelete,
+  onUpdate,
 }: {
   question: QuestionData;
   isSelected: boolean;
@@ -154,6 +156,15 @@ export function SortableQuestion({
           </Button>
         )}
       </div>
+
+      {/* Inline editor */}
+      {isSelected && (
+        <QuestionEditor
+          question={question}
+          isLocked={isLocked}
+          onUpdate={onUpdate}
+        />
+      )}
     </div>
   );
 }
