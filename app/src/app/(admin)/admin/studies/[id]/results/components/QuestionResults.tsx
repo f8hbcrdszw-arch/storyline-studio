@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { DialPlayback } from "./DialPlayback";
 
 interface QuestionInfo {
@@ -190,7 +190,7 @@ export function QuestionResults({
               lightbulbs={dialData.lightbulbs}
             />
           )}
-          <DialResultView data={dialData} />
+          <DialResultView data={dialData} questionId={question.id} />
         </>
       )}
     </div>
@@ -493,13 +493,47 @@ function GridResultView({ data }: { data: GridResult }) {
 
 function DialResultView({
   data,
+  questionId,
 }: {
   data: {
     dialData: DialAggregation[];
     lightbulbs: Record<number, number>;
     annotations?: { text: string; answeredAt: string }[];
   };
+  questionId: string;
 }) {
+  const svgRef = useRef<SVGSVGElement>(null);
+
+  const handleDownloadChart = useCallback(() => {
+    const svg = svgRef.current;
+    if (!svg) return;
+
+    const serializer = new XMLSerializer();
+    const svgStr = serializer.serializeToString(svg);
+    const svgBlob = new Blob([svgStr], { type: "image/svg+xml;charset=utf-8" });
+    const url = URL.createObjectURL(svgBlob);
+
+    const img = new Image();
+    img.onload = () => {
+      const scale = 2;
+      const canvas = document.createElement("canvas");
+      canvas.width = img.width * scale;
+      canvas.height = img.height * scale;
+      const ctx = canvas.getContext("2d")!;
+      ctx.scale(scale, scale);
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, img.width, img.height);
+      ctx.drawImage(img, 0, 0);
+      URL.revokeObjectURL(url);
+
+      const a = document.createElement("a");
+      a.href = canvas.toDataURL("image/png");
+      a.download = `dial-chart-${questionId}.png`;
+      a.click();
+    };
+    img.src = url;
+  }, [questionId]);
+
   if (data.dialData.length === 0) {
     return (
       <div className="rounded-lg border border-dashed border-border p-6 text-center">
@@ -511,12 +545,18 @@ function DialResultView({
   const maxSecond = data.dialData[data.dialData.length - 1]?.second || 0;
   const respondentCount = data.dialData[0]?.n || 0;
 
-  // SVG dimensions
+  // Lightbulb markers (computed first so we know if row is needed)
+  const lightbulbEntries = Object.entries(data.lightbulbs)
+    .map(([sec, count]) => ({ second: Number(sec), count }))
+    .filter((l) => l.second <= maxSecond);
+
+  // SVG dimensions — with dedicated lightbulb row
   const width = 700;
-  const height = 200;
+  const lightbulbRowH = lightbulbEntries.length > 0 ? 22 : 0;
+  const height = 200 + lightbulbRowH;
   const padding = { top: 10, right: 10, bottom: 30, left: 35 };
+  const chartH = height - padding.top - padding.bottom - lightbulbRowH;
   const chartW = width - padding.left - padding.right;
-  const chartH = height - padding.top - padding.bottom;
 
   // Scale functions
   const xScale = (sec: number) =>
@@ -524,22 +564,15 @@ function DialResultView({
   const yScale = (val: number) =>
     padding.top + chartH - (val / 100) * chartH;
 
+  // Lightbulb row position
+  const lbRowTop = padding.top + chartH + 4;
+
   // Dial color scale — matches the survey slider gradient
-  // red(0) → orange(25) → yellow(50) → lime(75) → green(100)
   function dialColor(val: number): string {
-    if (val <= 25) {
-      const t = val / 25;
-      return lerpColor([239, 68, 68], [249, 115, 22], t);
-    } else if (val <= 50) {
-      const t = (val - 25) / 25;
-      return lerpColor([249, 115, 22], [234, 179, 8], t);
-    } else if (val <= 75) {
-      const t = (val - 50) / 25;
-      return lerpColor([234, 179, 8], [132, 204, 22], t);
-    } else {
-      const t = (val - 75) / 25;
-      return lerpColor([132, 204, 22], [34, 197, 94], t);
-    }
+    if (val <= 25) return lerpColor([239, 68, 68], [249, 115, 22], val / 25);
+    if (val <= 50) return lerpColor([249, 115, 22], [234, 179, 8], (val - 25) / 25);
+    if (val <= 75) return lerpColor([234, 179, 8], [132, 204, 22], (val - 50) / 25);
+    return lerpColor([132, 204, 22], [34, 197, 94], (val - 75) / 25);
   }
 
   function lerpColor(a: number[], b: number[], t: number): string {
@@ -577,11 +610,6 @@ function DialResultView({
     .map((d, i) => `${i === 0 ? "M" : "L"}${xScale(d.second)},${yScale(d.median)}`)
     .join(" ");
 
-  // Lightbulb markers
-  const lightbulbEntries = Object.entries(data.lightbulbs)
-    .map(([sec, count]) => ({ second: Number(sec), count }))
-    .filter((l) => l.second <= maxSecond);
-
   // Time axis ticks
   const tickCount = Math.min(10, maxSecond);
   const tickInterval = Math.ceil(maxSecond / tickCount);
@@ -601,30 +629,38 @@ function DialResultView({
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center gap-4 text-xs text-muted-foreground flex-wrap">
-        <span>n = {respondentCount}</span>
-        <span className="flex items-center gap-1">
-          <span className="inline-block w-6 h-1.5 rounded" style={{ background: "linear-gradient(to right, #ef4444, #eab308, #22c55e)" }} /> Mean
-        </span>
-        <span className="flex items-center gap-1">
-          <span className="inline-block w-3 h-0.5 rounded" style={{ backgroundColor: "#9ca3af" }} /> Median
-        </span>
-        {lightbulbEntries.length > 0 && (
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4 text-xs text-muted-foreground flex-wrap">
+          <span>n = {respondentCount}</span>
           <span className="flex items-center gap-1">
-            <span className="inline-block w-2 h-2 rounded-full bg-yellow-400" />{" "}
-            Lightbulbs
+            <span className="inline-block w-6 h-1.5 rounded" style={{ background: "linear-gradient(to right, #ef4444, #eab308, #22c55e)" }} /> Mean
           </span>
-        )}
+          <span className="flex items-center gap-1">
+            <span className="inline-block w-3 h-0.5 rounded" style={{ backgroundColor: "#9ca3af" }} /> Median
+          </span>
+          {lightbulbEntries.length > 0 && (
+            <span className="flex items-center gap-1">
+              <span className="inline-block w-2.5 h-2.5 rounded-full bg-yellow-400" /> Moments
+            </span>
+          )}
+        </div>
+        <button
+          onClick={handleDownloadChart}
+          className="text-xs px-2.5 py-1.5 rounded-md border border-border bg-background text-foreground hover:bg-muted transition-colors"
+        >
+          Download Chart
+        </button>
       </div>
 
       <div className="rounded-lg border border-border p-3 overflow-x-auto">
         <svg
+          ref={svgRef}
           viewBox={`0 0 ${width} ${height}`}
           className="w-full"
           style={{ minWidth: "400px" }}
+          xmlns="http://www.w3.org/2000/svg"
         >
           <defs>
-            {/* Vertical gradient matching dial colors for the fill area */}
             <linearGradient id={gradientId} x1="0" y1="1" x2="0" y2="0">
               <stop offset="0%" stopColor="#ef4444" stopOpacity={0.08} />
               <stop offset="25%" stopColor="#f97316" stopOpacity={0.08} />
@@ -658,20 +694,6 @@ function DialResultView({
             </g>
           ))}
 
-          {/* Time axis */}
-          {ticks.map((t) => (
-            <text
-              key={t}
-              x={xScale(t)}
-              y={height - 5}
-              textAnchor="middle"
-              className="fill-muted-foreground"
-              fontSize={9}
-            >
-              {formatTime(t)}
-            </text>
-          ))}
-
           {/* 50 line (neutral) */}
           <line
             x1={padding.left}
@@ -698,7 +720,7 @@ function DialResultView({
             strokeDasharray="3 2"
           />
 
-          {/* Mean line — color-coded segments matching dial gradient */}
+          {/* Mean line — color-coded segments */}
           {meanSegments.map((seg, i) => (
             <line
               key={i}
@@ -712,16 +734,84 @@ function DialResultView({
             />
           ))}
 
-          {/* Lightbulb markers */}
-          {lightbulbEntries.map((l) => (
-            <circle
-              key={l.second}
-              cx={xScale(l.second)}
-              cy={yScale(0) + 2}
-              r={Math.min(3 + l.count, 8)}
-              fill="hsl(48 96% 53%)"
-              opacity={0.8}
-            />
+          {/* ── Lightbulb / Moments row ─────────────────────── */}
+          {lightbulbEntries.length > 0 && (
+            <g>
+              {/* Separator line */}
+              <line
+                x1={padding.left}
+                y1={lbRowTop - 2}
+                x2={width - padding.right}
+                y2={lbRowTop - 2}
+                stroke="currentColor"
+                strokeOpacity={0.12}
+              />
+              {/* Row label */}
+              <text
+                x={padding.left - 5}
+                y={lbRowTop + lightbulbRowH / 2}
+                textAnchor="end"
+                dominantBaseline="middle"
+                fontSize={8}
+                fill="#facc15"
+              >
+                &#x1F4A1;
+              </text>
+              {/* Markers */}
+              {lightbulbEntries.map((l) => {
+                const cx = xScale(l.second);
+                return (
+                  <g key={l.second}>
+                    {/* Vertical tick */}
+                    <line
+                      x1={cx}
+                      y1={lbRowTop}
+                      x2={cx}
+                      y2={lbRowTop + lightbulbRowH - 4}
+                      stroke="#facc15"
+                      strokeOpacity={0.5}
+                      strokeWidth={1}
+                    />
+                    {/* Dot at top */}
+                    <circle
+                      cx={cx}
+                      cy={lbRowTop + 4}
+                      r={Math.min(3 + l.count * 0.5, 6)}
+                      fill="#facc15"
+                      opacity={0.9}
+                    />
+                    {/* Count label if > 1 */}
+                    {l.count > 1 && (
+                      <text
+                        x={cx}
+                        y={lbRowTop + lightbulbRowH - 2}
+                        textAnchor="middle"
+                        dominantBaseline="auto"
+                        fontSize={7}
+                        fill="#facc15"
+                        opacity={0.7}
+                      >
+                        {l.count}
+                      </text>
+                    )}
+                  </g>
+                );
+              })}
+            </g>
+          )}
+
+          {/* Time axis */}
+          {ticks.map((t) => (
+            <text
+              key={t}
+              x={xScale(t)}
+              y={height - 5}
+              textAnchor="middle"
+              className="fill-muted-foreground"
+              fontSize={9}
+            >
+              {formatTime(t)}
+            </text>
           ))}
         </svg>
       </div>

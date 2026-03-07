@@ -229,21 +229,23 @@ export function DialPlayback({
 
       if (dialData.length === 0) return;
 
-      // Chart zone: bottom 28% of the video
-      const chartTop = h * 0.72;
-      const chartHeight = h * 0.28;
-      const chartPadLeft = 0;
-      const chartPadRight = 0;
-      const chartW = w - chartPadLeft - chartPadRight;
+      // Chart zone layout: bottom ~30% of video, split into dial + lightbulb row
+      const hasLightbulbs = Object.keys(lightbulbs).length > 0;
+      const totalZoneH = h * 0.30;
+      const lbRowH = hasLightbulbs ? totalZoneH * 0.16 : 0;
+      const dialH = totalZoneH - lbRowH;
+      const chartTop = h - totalZoneH;
+      const lbRowTop = chartTop + dialH;
+      const chartW = w;
       const videoDuration = duration || maxSecond + 1;
 
       // Semi-transparent background strip
       ctx.fillStyle = "rgba(0, 0, 0, 0.55)";
-      ctx.fillRect(0, chartTop, w, chartHeight);
+      ctx.fillRect(0, chartTop, w, totalZoneH);
 
       // Scale helpers
-      const xScale = (sec: number) => chartPadLeft + (sec / videoDuration) * chartW;
-      const yScale = (val: number) => chartTop + chartHeight - (val / 100) * chartHeight;
+      const xScale = (sec: number) => (sec / videoDuration) * chartW;
+      const yScale = (val: number) => chartTop + dialH - (val / 100) * dialH;
 
       // 50-line reference
       ctx.strokeStyle = "rgba(255, 255, 255, 0.25)";
@@ -266,7 +268,6 @@ export function DialPlayback({
       // Draw dial line segments up to current time
       const visibleData = dialData.filter((d) => d.second <= time);
       if (visibleData.length < 2) {
-        // Draw single point if only one
         if (visibleData.length === 1) {
           const d = visibleData[0];
           ctx.fillStyle = dialColor(d.mean);
@@ -274,80 +275,115 @@ export function DialPlayback({
           ctx.arc(xScale(d.second), yScale(d.mean), 4, 0, Math.PI * 2);
           ctx.fill();
         }
-        return;
-      }
+        // Still draw lightbulb row even with no dial data
+      } else {
+        // Gradient fill under line
+        for (let i = 0; i < visibleData.length - 1; i++) {
+          const d0 = visibleData[i];
+          const d1 = visibleData[i + 1];
+          const x0 = xScale(d0.second);
+          const x1 = xScale(d1.second);
+          const y0 = yScale(d0.mean);
+          const y1 = yScale(d1.mean);
+          const avgVal = (d0.mean + d1.mean) / 2;
 
-      // Gradient fill under line
-      for (let i = 0; i < visibleData.length - 1; i++) {
-        const d0 = visibleData[i];
-        const d1 = visibleData[i + 1];
-        const x0 = xScale(d0.second);
-        const x1 = xScale(d1.second);
-        const y0 = yScale(d0.mean);
-        const y1 = yScale(d1.mean);
-        const avgVal = (d0.mean + d1.mean) / 2;
+          // Fill area
+          ctx.fillStyle = dialColor(avgVal).replace("rgb", "rgba").replace(")", ", 0.15)");
+          ctx.beginPath();
+          ctx.moveTo(x0, yScale(0));
+          ctx.lineTo(x0, y0);
+          ctx.lineTo(x1, y1);
+          ctx.lineTo(x1, yScale(0));
+          ctx.closePath();
+          ctx.fill();
 
-        // Fill area
-        ctx.fillStyle = dialColor(avgVal).replace("rgb", "rgba").replace(")", ", 0.15)");
+          // Line segment
+          ctx.strokeStyle = dialColor(avgVal);
+          ctx.lineWidth = 2.5;
+          ctx.lineCap = "round";
+          ctx.beginPath();
+          ctx.moveTo(x0, y0);
+          ctx.lineTo(x1, y1);
+          ctx.stroke();
+        }
+
+        // Current value dot (head of line)
+        const last = visibleData[visibleData.length - 1];
+        ctx.fillStyle = "#ffffff";
         ctx.beginPath();
-        ctx.moveTo(x0, yScale(0));
-        ctx.lineTo(x0, y0);
-        ctx.lineTo(x1, y1);
-        ctx.lineTo(x1, yScale(0));
-        ctx.closePath();
+        ctx.arc(xScale(last.second), yScale(last.mean), 5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = dialColor(last.mean);
+        ctx.beginPath();
+        ctx.arc(xScale(last.second), yScale(last.mean), 3.5, 0, Math.PI * 2);
         ctx.fill();
 
-        // Line segment
-        ctx.strokeStyle = dialColor(avgVal);
-        ctx.lineWidth = 2.5;
-        ctx.lineCap = "round";
+        // Current value label
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "bold 11px system-ui, sans-serif";
+        ctx.textAlign = "center";
+        const labelY = yScale(last.mean) - 10;
+        ctx.fillText(String(Math.round(last.mean)), xScale(last.second), labelY < chartTop + 12 ? yScale(last.mean) + 16 : labelY);
+      }
+
+      // ── Lightbulb / Moments row ──────────────────────────
+      if (hasLightbulbs) {
+        // Separator line
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.2)";
+        ctx.lineWidth = 0.5;
         ctx.beginPath();
-        ctx.moveTo(x0, y0);
-        ctx.lineTo(x1, y1);
+        ctx.moveTo(0, lbRowTop);
+        ctx.lineTo(w, lbRowTop);
         ctx.stroke();
+
+        // Row label
+        ctx.fillStyle = "rgba(250, 204, 21, 0.6)";
+        ctx.font = "8px system-ui, sans-serif";
+        ctx.textAlign = "right";
+        ctx.fillText("💡", w - 4, lbRowTop + lbRowH * 0.6);
+
+        // Markers up to current time
+        const lightbulbEntries = Object.entries(lightbulbs)
+          .map(([sec, count]) => ({ second: Number(sec), count }))
+          .filter((l) => l.second <= time);
+
+        for (const l of lightbulbEntries) {
+          const x = xScale(l.second);
+          const dotY = lbRowTop + 5;
+          const tickBottom = lbRowTop + lbRowH - 2;
+
+          // Vertical tick
+          ctx.strokeStyle = "rgba(250, 204, 21, 0.4)";
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(x, dotY);
+          ctx.lineTo(x, tickBottom);
+          ctx.stroke();
+
+          // Dot at top
+          const r = Math.min(2.5 + l.count * 0.5, 5);
+          ctx.fillStyle = "rgba(250, 204, 21, 0.9)";
+          ctx.beginPath();
+          ctx.arc(x, dotY, r, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Count label if > 1
+          if (l.count > 1) {
+            ctx.fillStyle = "rgba(250, 204, 21, 0.7)";
+            ctx.font = "7px system-ui, sans-serif";
+            ctx.textAlign = "center";
+            ctx.fillText(String(l.count), x, tickBottom + 1);
+          }
+        }
       }
 
-      // Current value dot (head of line)
-      const last = visibleData[visibleData.length - 1];
-      ctx.fillStyle = "#ffffff";
-      ctx.beginPath();
-      ctx.arc(xScale(last.second), yScale(last.mean), 5, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = dialColor(last.mean);
-      ctx.beginPath();
-      ctx.arc(xScale(last.second), yScale(last.mean), 3.5, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Current value label
-      ctx.fillStyle = "#ffffff";
-      ctx.font = "bold 11px system-ui, sans-serif";
-      ctx.textAlign = "center";
-      const labelY = yScale(last.mean) - 10;
-      ctx.fillText(String(Math.round(last.mean)), xScale(last.second), labelY < chartTop + 12 ? yScale(last.mean) + 16 : labelY);
-
-      // Lightbulb markers
-      const lightbulbEntries = Object.entries(lightbulbs)
-        .map(([sec, count]) => ({ second: Number(sec), count }))
-        .filter((l) => l.second <= time);
-
-      for (const l of lightbulbEntries) {
-        const x = xScale(l.second);
-        const y = yScale(0) - 2;
-        const r = Math.min(3 + l.count, 7);
-
-        ctx.fillStyle = "rgba(250, 204, 21, 0.85)";
-        ctx.beginPath();
-        ctx.arc(x, y, r, 0, Math.PI * 2);
-        ctx.fill();
-      }
-
-      // Playback position indicator line (vertical)
+      // Playback position indicator line (vertical, spans full zone)
       const px = xScale(time);
       ctx.strokeStyle = "rgba(255, 255, 255, 0.5)";
       ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.moveTo(px, chartTop);
-      ctx.lineTo(px, chartTop + chartHeight);
+      ctx.lineTo(px, chartTop + totalZoneH);
       ctx.stroke();
     },
     [dialData, lightbulbs, maxSecond, duration]
