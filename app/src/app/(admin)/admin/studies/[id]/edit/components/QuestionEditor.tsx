@@ -2,7 +2,9 @@
 
 import { useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import type { QuestionData, QuestionOption } from "./StudyEditor";
+import type { QuestionData, QuestionOption, MediaItemData } from "./StudyEditor";
+import { MediaUploader } from "./MediaUploader";
+import { SkipLogicEditor } from "./SkipLogicEditor";
 
 const PHASE_OPTIONS = [
   { value: "SCREENING", label: "Screening" },
@@ -33,12 +35,25 @@ const NUMERIC_TYPES = new Set(["NUMERIC"]);
 // Types that need grid config
 const GRID_TYPES = new Set(["GRID"]);
 
+// Types that support media attachments
+const MEDIA_TYPES = new Set([
+  "VIDEO_DIAL",
+  "IMAGE_LIST",
+  "IMAGE_AB",
+  "AD_MOCK_UP",
+  "MULTI_AD",
+  "COMPARISON",
+  "SELECT_FROM_SET",
+]);
+
 export function QuestionEditor({
   question,
+  allQuestions,
   isLocked,
   onUpdate,
 }: {
   question: QuestionData;
+  allQuestions: QuestionData[];
   isLocked: boolean;
   onUpdate: (updates: Partial<QuestionData>) => void;
 }) {
@@ -62,6 +77,7 @@ export function QuestionEditor({
       required,
       isScreening,
       config,
+      skipLogic: question.skipLogic,
     };
 
     if (OPTION_TYPES.has(question.type)) {
@@ -276,6 +292,27 @@ export function QuestionEditor({
           </div>
         </div>
       )}
+
+      {/* Media uploader for applicable types */}
+      {MEDIA_TYPES.has(question.type) && (
+        <MediaUploader
+          questionId={question.id}
+          mediaItems={question.mediaItems}
+          onMediaAdded={(item: MediaItemData) =>
+            onUpdate({ mediaItems: [...question.mediaItems, item] })
+          }
+        />
+      )}
+
+      {/* Skip logic */}
+      <SkipLogicEditor
+        question={question}
+        allQuestions={allQuestions}
+        onUpdate={(skipLogic) => {
+          onUpdate({ skipLogic: skipLogic as QuestionData["skipLogic"] });
+        }}
+        isLocked={isLocked}
+      />
 
       {/* Save button */}
       {!isLocked && (

@@ -36,6 +36,7 @@ const PHASE_COLORS: Record<string, string> = {
 
 export function SortableQuestion({
   question,
+  allQuestions,
   isSelected,
   isLocked,
   onSelect,
@@ -43,6 +44,7 @@ export function SortableQuestion({
   onUpdate,
 }: {
   question: QuestionData;
+  allQuestions: QuestionData[];
   isSelected: boolean;
   isLocked: boolean;
   onSelect: () => void;
@@ -161,6 +163,7 @@ export function SortableQuestion({
       {isSelected && (
         <QuestionEditor
           question={question}
+          allQuestions={allQuestions}
           isLocked={isLocked}
           onUpdate={onUpdate}
         />

@@ -252,6 +252,7 @@ export function StudyEditor({
                 <SortableQuestion
                   key={question.id}
                   question={question}
+                  allQuestions={questions}
                   isSelected={selectedQuestionId === question.id}
                   isLocked={isLocked}
                   onSelect={() =>
