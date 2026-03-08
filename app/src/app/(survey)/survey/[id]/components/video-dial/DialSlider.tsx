@@ -20,6 +20,8 @@ export function DialSlider({
   const [isDragging, setIsDragging] = useState(false);
   const trackRef = useRef<HTMLDivElement>(null);
 
+  const clamp = (v: number) => Math.max(0, Math.min(100, v));
+
   const getValueFromPosition = useCallback(
     (clientX: number) => {
       if (!trackRef.current) return 50;
@@ -57,9 +59,48 @@ export function DialSlider({
     setIsDragging(false);
   }, []);
 
+  // Keyboard navigation for accessibility
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (disabled) return;
+
+      let newValue: number | null = null;
+      const step = e.shiftKey ? 10 : 1;
+
+      switch (e.key) {
+        case "ArrowRight":
+        case "ArrowUp":
+          newValue = clamp(value + step);
+          break;
+        case "ArrowLeft":
+        case "ArrowDown":
+          newValue = clamp(value - step);
+          break;
+        case "Home":
+          newValue = 0;
+          break;
+        case "End":
+          newValue = 100;
+          break;
+        default:
+          return; // Don't prevent default for non-slider keys
+      }
+
+      e.preventDefault();
+      onInteract();
+      onChange(newValue);
+    },
+    [disabled, value, onChange, onInteract]
+  );
+
   const leftLabel = mode === "sentiment" ? "Negative" : "0";
   const rightLabel = mode === "sentiment" ? "Positive" : "100";
   const thumbPosition = `${value}%`;
+
+  const ariaLabel =
+    mode === "sentiment"
+      ? `Sentiment dial at ${value}. Use arrow keys to adjust.`
+      : `Intensity dial at ${value} out of 100. Use arrow keys to adjust.`;
 
   return (
     <div className="w-full select-none">
@@ -73,10 +114,22 @@ export function DialSlider({
         </div>
       </div>
 
-      {/* Track */}
+      {/* Track — acts as the slider container for ARIA */}
       <div
         ref={trackRef}
-        className="relative h-3 rounded-full cursor-pointer touch-none"
+        role="slider"
+        tabIndex={disabled ? -1 : 0}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={value}
+        aria-valuetext={
+          mode === "sentiment"
+            ? `${value <= 33 ? "Negative" : value >= 67 ? "Positive" : "Neutral"}, ${value}`
+            : `${value} out of 100`
+        }
+        aria-label={ariaLabel}
+        aria-disabled={disabled}
+        className="relative h-3 rounded-full cursor-pointer touch-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
         style={{
           background:
             mode === "sentiment"
@@ -87,10 +140,13 @@ export function DialSlider({
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerUp}
+        onKeyDown={handleKeyDown}
       >
-        {/* Thumb */}
+        {/* Thumb — larger on mobile (36px) for better touch targets */}
         <div
-          className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-7 h-7 rounded-full bg-white border-2 border-foreground shadow-md transition-shadow"
+          className={`absolute top-1/2 -translate-y-1/2 -translate-x-1/2 rounded-full bg-white border-2 border-foreground shadow-md transition-shadow ${
+            isDragging ? "scale-105" : ""
+          } w-7 h-7 sm:w-7 sm:h-7 max-[640px]:w-9 max-[640px]:h-9`}
           style={{
             left: thumbPosition,
             boxShadow: isDragging
@@ -115,7 +171,7 @@ export function DialSlider({
         </span>
       </div>
 
-      {/* Numeric tick marks for accessibility */}
+      {/* Numeric tick marks */}
       <div className="flex justify-between mt-0.5 px-0.5">
         {[0, 25, 50, 75, 100].map((n) => (
           <span key={n} className="text-[8px] text-muted-foreground/50 font-mono">
