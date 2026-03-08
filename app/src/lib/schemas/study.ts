@@ -1,5 +1,16 @@
 import { z } from "zod";
 
+const hexColorSchema = z.string().regex(/^#[0-9a-fA-F]{6}$/, "Must be a valid hex color");
+
+const surveyThemeSchema = z.object({
+  primaryColor: hexColorSchema,
+  backgroundColor: hexColorSchema,
+  textColor: hexColorSchema,
+  accentColor: hexColorSchema,
+  buttonStyle: z.enum(["rounded", "pill", "square"]),
+  progressBarStyle: z.enum(["line", "dots", "fraction", "hidden"]),
+});
+
 export const STUDY_STATUSES = [
   "DRAFT",
   "ACTIVE",
@@ -32,6 +43,7 @@ export const createStudySchema = z.object({
         .max(2000)
         .optional(),
       quota: z.number().int().positive().max(100000).optional(),
+      theme: surveyThemeSchema.optional(),
     })
     .optional(),
 });
@@ -51,6 +63,7 @@ export const updateStudySchema = z.object({
         .optional()
         .nullable(),
       quota: z.number().int().positive().max(100000).optional().nullable(),
+      theme: surveyThemeSchema.optional().nullable(),
     })
     .optional(),
 });

@@ -1,6 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import { SurveyShell } from "./components/SurveyShell";
+import { SurveyThemeProvider } from "@/components/survey/ThemeProvider";
+import type { SurveyTheme } from "@/lib/types/json-fields";
 
 export default async function SurveyPage({
   params,
@@ -49,13 +51,18 @@ export default async function SurveyPage({
     );
   }
 
+  const settings = study.settings as Record<string, unknown>;
+  const theme = (settings?.theme as SurveyTheme) ?? null;
+
   return (
-    <SurveyShell
-      studyId={study.id}
-      studyTitle={study.title}
-      slug={study.slug || study.id}
-      settings={study.settings as Record<string, unknown>}
-      preview={isPreview}
-    />
+    <SurveyThemeProvider theme={theme}>
+      <SurveyShell
+        studyId={study.id}
+        studyTitle={study.title}
+        slug={study.slug || study.id}
+        settings={settings}
+        preview={isPreview}
+      />
+    </SurveyThemeProvider>
   );
 }

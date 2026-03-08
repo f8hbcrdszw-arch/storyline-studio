@@ -13,7 +13,59 @@ export interface StudySettings {
   showProgress?: boolean;
   completionRedirectUrl?: string;
   quota?: number;
+  theme?: SurveyTheme;
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Survey theme — per-study visual customization
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface SurveyTheme {
+  primaryColor: string;       // hex, default: #121C8A (Storyline Blue)
+  backgroundColor: string;    // hex, default: #F4F3EF (Cream)
+  textColor: string;          // hex, default: #100C21 (Navy)
+  accentColor: string;        // hex, default: #121C8A
+  buttonStyle: "rounded" | "pill" | "square";
+  progressBarStyle: "line" | "dots" | "fraction" | "hidden";
+}
+
+export const DEFAULT_THEME: SurveyTheme = {
+  primaryColor: "#121C8A",
+  backgroundColor: "#F4F3EF",
+  textColor: "#100C21",
+  accentColor: "#121C8A",
+  buttonStyle: "rounded",
+  progressBarStyle: "line",
+};
+
+/** Preset themes */
+export const THEME_PRESETS: Record<string, SurveyTheme> = {
+  "Storyline Classic": { ...DEFAULT_THEME },
+  "Minimal Light": {
+    primaryColor: "#18181B",
+    backgroundColor: "#FFFFFF",
+    textColor: "#18181B",
+    accentColor: "#18181B",
+    buttonStyle: "pill",
+    progressBarStyle: "line",
+  },
+  "Dark Professional": {
+    primaryColor: "#818CF8",
+    backgroundColor: "#1E1B2E",
+    textColor: "#F4F3EF",
+    accentColor: "#818CF8",
+    buttonStyle: "rounded",
+    progressBarStyle: "line",
+  },
+  "Corporate Blue": {
+    primaryColor: "#2563EB",
+    backgroundColor: "#F8FAFC",
+    textColor: "#0F172A",
+    accentColor: "#2563EB",
+    buttonStyle: "square",
+    progressBarStyle: "fraction",
+  },
+};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Question.config — varies by QuestionType

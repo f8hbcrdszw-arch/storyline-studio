@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
 import { QuestionRenderer } from "./QuestionRenderer";
 import type { QuestionData } from "@/lib/types/question";
+import type { SurveyTheme } from "@/lib/types/json-fields";
 
 /** @deprecated Use QuestionData from @/lib/types/question instead */
 export type SurveyQuestion = QuestionData;
@@ -50,6 +51,8 @@ export function SurveyShell({
 
   const allowBack = (settings.allowBackNavigation as boolean) ?? false;
   const showProgress = (settings.showProgress as boolean) ?? true;
+  const themeSettings = settings.theme as SurveyTheme | undefined;
+  const progressBarStyle = themeSettings?.progressBarStyle ?? "line";
 
   // Load study data
   const loadStudy = useCallback(async () => {
@@ -420,24 +423,43 @@ export function SurveyShell({
         )}
 
         {/* Progress */}
-        {showProgress && (
+        {showProgress && progressBarStyle !== "hidden" && (
           <div className="mb-6">
-            <div className="flex justify-between text-xs text-muted-foreground mb-1">
-              <span>
-                Question {currentIndex + 1} of {totalQuestions}
-              </span>
-              <span>
-                {Math.round(((currentIndex + 1) / totalQuestions) * 100)}%
-              </span>
-            </div>
-            <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-              <div
-                className="h-full bg-primary rounded-full progress-bar-fill"
-                style={{
-                  width: `${((currentIndex + 1) / totalQuestions) * 100}%`,
-                }}
-              />
-            </div>
+            {progressBarStyle === "fraction" ? (
+              <div className="text-center text-xs text-muted-foreground">
+                {currentIndex + 1} / {totalQuestions}
+              </div>
+            ) : progressBarStyle === "dots" ? (
+              <div className="flex justify-center gap-1.5">
+                {Array.from({ length: totalQuestions }, (_, i) => (
+                  <div
+                    key={i}
+                    className={`w-2 h-2 rounded-full transition-colors ${
+                      i <= currentIndex ? "bg-primary" : "bg-muted"
+                    }`}
+                  />
+                ))}
+              </div>
+            ) : (
+              <>
+                <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                  <span>
+                    Question {currentIndex + 1} of {totalQuestions}
+                  </span>
+                  <span>
+                    {Math.round(((currentIndex + 1) / totalQuestions) * 100)}%
+                  </span>
+                </div>
+                <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-primary rounded-full progress-bar-fill"
+                    style={{
+                      width: `${((currentIndex + 1) / totalQuestions) * 100}%`,
+                    }}
+                  />
+                </div>
+              </>
+            )}
           </div>
         )}
 

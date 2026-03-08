@@ -11,6 +11,8 @@ import { QuestionEditor } from "./QuestionEditor";
 import { QuestionTypeSelector } from "./QuestionTypeSelector";
 import { LivePreview } from "./LivePreview";
 import { SortableQuestion } from "./SortableQuestion";
+import { ThemeEditor } from "./ThemeEditor";
+import { DEFAULT_THEME, type SurveyTheme } from "@/lib/types/json-fields";
 import type { QuestionData } from "@/lib/types/question";
 import type { StudyData } from "@/lib/types/study";
 
@@ -95,6 +97,8 @@ function EditorHeader({ study, isLocked }: { study: StudyData; isLocked: boolean
 // Center panel: selected question editor + add question
 // ─────────────────────────────────────────────────────────────────────────────
 
+type EditorTab = "questions" | "theme";
+
 function EditorCenter({ study, isLocked }: { study: StudyData; isLocked: boolean }) {
   const questions = useEditorStore((s) => s.questions);
   const selectedQuestionId = useEditorStore((s) => s.selectedQuestionId);
@@ -104,6 +108,53 @@ function EditorCenter({ study, isLocked }: { study: StudyData; isLocked: boolean
   const undoDelete = useEditorStore((s) => s.undoDelete);
   const updateQuestion = useEditorStore((s) => s.updateQuestion);
   const lastDeleted = useEditorStore((s) => s.lastDeleted);
+
+  const [activeTab, setActiveTab] = useState<EditorTab>("questions");
+  const [theme, setTheme] = useState<SurveyTheme>(
+    (study.settings as Record<string, unknown>)?.theme as SurveyTheme ?? DEFAULT_THEME
+  );
+  const [themeSaving, setThemeSaving] = useState(false);
+  const [themeError, setThemeError] = useState<string | null>(null);
+
+  // Debounced theme save
+  const saveThemeRef = useCallback(
+    async (newTheme: SurveyTheme) => {
+      setThemeSaving(true);
+      setThemeError(null);
+      try {
+        const res = await fetch(`/api/studies/${study.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            settings: {
+              ...(study.settings as Record<string, unknown>),
+              theme: newTheme,
+            },
+          }),
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          setThemeError(data.error || "Failed to save theme");
+        }
+      } catch {
+        setThemeError("Network error saving theme");
+      } finally {
+        setThemeSaving(false);
+      }
+    },
+    [study.id, study.settings]
+  );
+
+  // Debounce theme saves by 800ms
+  const themeTimerRef = useState<ReturnType<typeof setTimeout> | null>(null);
+  const handleThemeUpdate = useCallback(
+    (newTheme: SurveyTheme) => {
+      setTheme(newTheme);
+      if (themeTimerRef[0]) clearTimeout(themeTimerRef[0]);
+      themeTimerRef[0] = setTimeout(() => saveThemeRef(newTheme), 800);
+    },
+    [saveThemeRef, themeTimerRef]
+  );
 
   const [showTypeSelector, setShowTypeSelector] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
@@ -208,77 +259,124 @@ function EditorCenter({ study, isLocked }: { study: StudyData; isLocked: boolean
     [study.id, addQuestionToStore]
   );
 
-  if (!selectedQuestion) {
-    return (
-      <div className="flex flex-col items-center justify-center py-16 text-center">
-        <p className="text-sm text-muted-foreground mb-6">
-          {questions.length === 0
-            ? "No questions yet. Add your first question below."
-            : "Select a question from the list to edit it."}
-        </p>
-        {!isLocked && (
-          <div className="w-full max-w-sm">
-            {addError && (
-              <p className="text-sm text-destructive mb-2">{addError}</p>
-            )}
-            {showTypeSelector ? (
-              <QuestionTypeSelector
-                phase="PRE_BALLOT"
-                onSelect={handleAddQuestion}
-                onCancel={() => setShowTypeSelector(false)}
-              />
-            ) : (
-              <Button
-                variant="outline"
-                onClick={() => setShowTypeSelector(true)}
-                className="w-full"
-              >
-                + Add Question
-              </Button>
-            )}
-          </div>
-        )}
-      </div>
-    );
-  }
-
   return (
     <div>
-      {/* Question card with inline editor */}
-      <SortableQuestion
-        question={selectedQuestion}
-        allQuestions={questions}
-        isSelected={true}
-        isLocked={isLocked}
-        onSelect={() => {}}
-        onDelete={() => handleDeleteQuestion(selectedQuestion.id)}
-        onUpdate={(updates) => updateQuestion(selectedQuestion.id, updates)}
-        onDuplicateToPhase={handleDuplicateToPhase}
-      />
+      {/* Tab switcher */}
+      <div className="flex gap-1 mb-4">
+        <button
+          onClick={() => setActiveTab("questions")}
+          className={`px-3 py-1.5 text-xs rounded-md transition-colors ${
+            activeTab === "questions"
+              ? "bg-primary text-primary-foreground font-medium"
+              : "bg-muted text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          Questions
+        </button>
+        <button
+          onClick={() => setActiveTab("theme")}
+          className={`px-3 py-1.5 text-xs rounded-md transition-colors ${
+            activeTab === "theme"
+              ? "bg-primary text-primary-foreground font-medium"
+              : "bg-muted text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          Theme
+        </button>
+      </div>
 
-      {/* Add question below */}
-      {!isLocked && (
-        <div className="mt-4 pt-4 border-t border-border">
-          {addError && (
-            <p className="text-sm text-destructive mb-2">{addError}</p>
-          )}
-          {showTypeSelector ? (
-            <QuestionTypeSelector
-              phase={selectedQuestion.phase}
-              onSelect={handleAddQuestion}
-              onCancel={() => setShowTypeSelector(false)}
-            />
-          ) : (
-            <Button
-              variant="outline"
-              onClick={() => setShowTypeSelector(true)}
-              className="w-full"
-              size="sm"
-            >
-              + Add Question
-            </Button>
+      {/* Theme tab */}
+      {activeTab === "theme" && (
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-medium">Survey Theme</h3>
+            {themeSaving && (
+              <span className="text-[10px] text-muted-foreground">Saving...</span>
+            )}
+            {themeError && (
+              <span className="text-[10px] text-destructive">{themeError}</span>
+            )}
+          </div>
+          <ThemeEditor
+            theme={theme}
+            onUpdate={handleThemeUpdate}
+            isLocked={isLocked}
+          />
+        </div>
+      )}
+
+      {/* Questions tab */}
+      {activeTab === "questions" && !selectedQuestion && (
+        <div className="flex flex-col items-center justify-center py-16 text-center">
+          <p className="text-sm text-muted-foreground mb-6">
+            {questions.length === 0
+              ? "No questions yet. Add your first question below."
+              : "Select a question from the list to edit it."}
+          </p>
+          {!isLocked && (
+            <div className="w-full max-w-sm">
+              {addError && (
+                <p className="text-sm text-destructive mb-2">{addError}</p>
+              )}
+              {showTypeSelector ? (
+                <QuestionTypeSelector
+                  phase="PRE_BALLOT"
+                  onSelect={handleAddQuestion}
+                  onCancel={() => setShowTypeSelector(false)}
+                />
+              ) : (
+                <Button
+                  variant="outline"
+                  onClick={() => setShowTypeSelector(true)}
+                  className="w-full"
+                >
+                  + Add Question
+                </Button>
+              )}
+            </div>
           )}
         </div>
+      )}
+
+      {activeTab === "questions" && selectedQuestion && (
+        <>
+          {/* Question card with inline editor */}
+          <SortableQuestion
+            question={selectedQuestion}
+            allQuestions={questions}
+            isSelected={true}
+            isLocked={isLocked}
+            onSelect={() => {}}
+            onDelete={() => handleDeleteQuestion(selectedQuestion.id)}
+            onUpdate={(updates) => updateQuestion(selectedQuestion.id, updates)}
+            onDuplicateToPhase={handleDuplicateToPhase}
+          />
+
+          {/* Add question below */}
+          {!isLocked && (
+            <div className="mt-4 pt-4 border-t border-border">
+              {addError && (
+                <p className="text-sm text-destructive mb-2">{addError}</p>
+              )}
+              {showTypeSelector ? (
+                <QuestionTypeSelector
+                  phase={selectedQuestion.phase}
+                  onSelect={handleAddQuestion}
+                  onCancel={() => setShowTypeSelector(false)}
+                />
+              ) : (
+                <Button
+                  variant="outline"
+                  onClick={() => setShowTypeSelector(true)}
+                  className="w-full"
+                  size="sm"
+                >
+                  + Add Question
+                </Button>
+              )}
+            </div>
+          )}
+        </>
       )}
 
       {/* Undo delete toast */}

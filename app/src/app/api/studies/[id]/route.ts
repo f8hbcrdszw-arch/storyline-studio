@@ -87,15 +87,20 @@ export const PATCH = withErrorHandler(
     }
 
     // Lock metadata edits (title/description/settings) on non-draft studies with responses
+    // Exception: settings changes that only modify the theme are allowed (visual-only)
     if (
       existing.status !== "DRAFT" &&
       existing._count.responses > 0 &&
       (data.title || data.description !== undefined || data.settings)
     ) {
-      return NextResponse.json(
-        { error: "Cannot edit study metadata while responses exist" },
-        { status: 400 }
-      );
+      // Allow if the ONLY change is the settings field (theme is visual-only)
+      const isSettingsOnly = !data.title && data.description === undefined && !!data.settings;
+      if (!isSettingsOnly) {
+        return NextResponse.json(
+          { error: "Cannot edit study metadata while responses exist" },
+          { status: 400 }
+        );
+      }
     }
 
     const study = await prisma.study.update({
