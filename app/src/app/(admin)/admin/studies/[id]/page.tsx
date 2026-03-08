@@ -7,7 +7,9 @@ import { StatusDot } from "@/components/ui/status-dot";
 import { StudyActions } from "./components/StudyActions";
 import { OverflowMenu } from "./components/OverflowMenu";
 import { EditableTitle } from "./components/EditableTitle";
-import { ArrowLeft, Pencil, BarChart3, Eye } from "lucide-react";
+import { StudyThemeSection } from "./components/StudyThemeSection";
+import { DEFAULT_THEME, type SurveyTheme } from "@/lib/types/json-fields";
+import { ArrowLeft, Pencil, BarChart3, Eye, ChevronRight } from "lucide-react";
 
 const TYPE_LABELS: Record<string, string> = {
   VIDEO_DIAL: "Video Dial",
@@ -66,16 +68,12 @@ export default async function StudyDetailPage({
           <EditableTitle studyId={study.id} title={study.title} />
           <div className="flex items-center gap-2 shrink-0 ml-4">
             {study.questions.length > 0 && (
-              <a
-                href={`/survey/${id}?preview=true`}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
+              <Link href={`/admin/studies/${id}/preview`}>
                 <Button variant="outline" size="sm">
                   <Eye className="w-3.5 h-3.5 mr-1.5" />
                   Preview
                 </Button>
-              </a>
+              </Link>
             )}
             <Link href={`/admin/studies/${id}/edit`}>
               <Button variant="outline" size="sm">
@@ -119,6 +117,15 @@ export default async function StudyDetailPage({
         />
       </div>
 
+      {/* Appearance / Theme */}
+      <div className="animate-in fade-in duration-300 delay-175">
+        <StudyThemeSection
+          studyId={study.id}
+          initialTheme={(study.settings as Record<string, unknown>)?.theme as SurveyTheme ?? DEFAULT_THEME}
+          settings={study.settings as Record<string, unknown>}
+        />
+      </div>
+
       {/* Questions */}
       <div className="animate-in fade-in slide-in-from-bottom-1 duration-300 delay-200">
         {study.questions.length > 0 ? (
@@ -126,14 +133,15 @@ export default async function StudyDetailPage({
             <p className="section-label mb-3">Questions</p>
             <div className="border-t border-border">
               {study.questions.map((q, i) => (
-                <div
+                <Link
                   key={q.id}
+                  href={`/admin/studies/${id}/edit?q=${q.id}`}
                   className="group flex items-center gap-3 border-b border-border py-2.5 px-2 hover:bg-accent/30 -mx-1 rounded-md"
                 >
                   <span className="text-xs text-muted-foreground w-5 text-right tabular-nums">
                     {i + 1}
                   </span>
-                  <span className="flex-1 text-sm font-medium text-foreground truncate">
+                  <span className="flex-1 text-sm font-medium text-foreground group-hover:text-primary truncate">
                     {q.title}
                   </span>
                   <span className="text-xs text-muted-foreground shrink-0">
@@ -142,7 +150,8 @@ export default async function StudyDetailPage({
                   <span className="text-xs text-muted-foreground shrink-0 w-20 text-right">
                     {titleCase(q.phase)}
                   </span>
-                </div>
+                  <ChevronRight className="w-4 h-4 text-muted-foreground opacity-0 -translate-x-1 group-hover:opacity-60 group-hover:translate-x-0 transition-all duration-150" />
+                </Link>
               ))}
             </div>
           </div>

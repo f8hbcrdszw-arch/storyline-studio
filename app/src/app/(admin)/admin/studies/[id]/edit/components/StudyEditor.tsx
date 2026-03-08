@@ -11,8 +11,6 @@ import { QuestionEditor } from "./QuestionEditor";
 import { QuestionTypeSelector } from "./QuestionTypeSelector";
 import { LivePreview } from "./LivePreview";
 import { SortableQuestion } from "./SortableQuestion";
-import { ThemeEditor } from "./ThemeEditor";
-import { DEFAULT_THEME, type SurveyTheme } from "@/lib/types/json-fields";
 import type { QuestionData } from "@/lib/types/question";
 import type { StudyData } from "@/lib/types/study";
 
@@ -31,9 +29,17 @@ export function StudyEditor({
 }) {
   // Hydrate store on mount
   const hydrate = useEditorStore((s) => s.hydrate);
+  const selectQuestion = useEditorStore((s) => s.selectQuestion);
   useEffect(() => {
     hydrate(study, initialQuestions);
-  }, [hydrate, study, initialQuestions]);
+
+    // Auto-select question from ?q= URL param
+    const params = new URLSearchParams(window.location.search);
+    const qId = params.get("q");
+    if (qId && initialQuestions.some((q) => q.id === qId)) {
+      selectQuestion(qId);
+    }
+  }, [hydrate, selectQuestion, study, initialQuestions]);
 
   // Autosave
   useAutosave();
@@ -73,21 +79,6 @@ function EditorHeader({ study, isLocked }: { study: StudyData; isLocked: boolean
       </div>
       <div className="flex items-center gap-3 shrink-0">
         <SaveIndicator />
-        {questions.length > 0 && (
-          <a
-            href={`/survey/${study.id}?preview=true`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" />
-              <polyline points="15 3 21 3 21 9" />
-              <line x1="10" y1="14" x2="21" y2="3" />
-            </svg>
-            Full Preview
-          </a>
-        )}
       </div>
     </div>
   );
@@ -96,8 +87,6 @@ function EditorHeader({ study, isLocked }: { study: StudyData; isLocked: boolean
 // ─────────────────────────────────────────────────────────────────────────────
 // Center panel: selected question editor + add question
 // ─────────────────────────────────────────────────────────────────────────────
-
-type EditorTab = "questions" | "theme";
 
 function EditorCenter({ study, isLocked }: { study: StudyData; isLocked: boolean }) {
   const questions = useEditorStore((s) => s.questions);
@@ -108,53 +97,6 @@ function EditorCenter({ study, isLocked }: { study: StudyData; isLocked: boolean
   const undoDelete = useEditorStore((s) => s.undoDelete);
   const updateQuestion = useEditorStore((s) => s.updateQuestion);
   const lastDeleted = useEditorStore((s) => s.lastDeleted);
-
-  const [activeTab, setActiveTab] = useState<EditorTab>("questions");
-  const [theme, setTheme] = useState<SurveyTheme>(
-    (study.settings as Record<string, unknown>)?.theme as SurveyTheme ?? DEFAULT_THEME
-  );
-  const [themeSaving, setThemeSaving] = useState(false);
-  const [themeError, setThemeError] = useState<string | null>(null);
-
-  // Debounced theme save
-  const saveThemeRef = useCallback(
-    async (newTheme: SurveyTheme) => {
-      setThemeSaving(true);
-      setThemeError(null);
-      try {
-        const res = await fetch(`/api/studies/${study.id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            settings: {
-              ...(study.settings as Record<string, unknown>),
-              theme: newTheme,
-            },
-          }),
-        });
-        if (!res.ok) {
-          const data = await res.json().catch(() => ({}));
-          setThemeError(data.error || "Failed to save theme");
-        }
-      } catch {
-        setThemeError("Network error saving theme");
-      } finally {
-        setThemeSaving(false);
-      }
-    },
-    [study.id, study.settings]
-  );
-
-  // Debounce theme saves by 800ms
-  const themeTimerRef = useState<ReturnType<typeof setTimeout> | null>(null);
-  const handleThemeUpdate = useCallback(
-    (newTheme: SurveyTheme) => {
-      setTheme(newTheme);
-      if (themeTimerRef[0]) clearTimeout(themeTimerRef[0]);
-      themeTimerRef[0] = setTimeout(() => saveThemeRef(newTheme), 800);
-    },
-    [saveThemeRef, themeTimerRef]
-  );
 
   const [showTypeSelector, setShowTypeSelector] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
@@ -261,52 +203,7 @@ function EditorCenter({ study, isLocked }: { study: StudyData; isLocked: boolean
 
   return (
     <div>
-      {/* Tab switcher */}
-      <div className="flex gap-1 mb-4">
-        <button
-          onClick={() => setActiveTab("questions")}
-          className={`px-3 py-1.5 text-xs rounded-md transition-colors ${
-            activeTab === "questions"
-              ? "bg-primary text-primary-foreground font-medium"
-              : "bg-muted text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          Questions
-        </button>
-        <button
-          onClick={() => setActiveTab("theme")}
-          className={`px-3 py-1.5 text-xs rounded-md transition-colors ${
-            activeTab === "theme"
-              ? "bg-primary text-primary-foreground font-medium"
-              : "bg-muted text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          Theme
-        </button>
-      </div>
-
-      {/* Theme tab */}
-      {activeTab === "theme" && (
-        <div>
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-medium">Survey Theme</h3>
-            {themeSaving && (
-              <span className="text-[10px] text-muted-foreground">Saving...</span>
-            )}
-            {themeError && (
-              <span className="text-[10px] text-destructive">{themeError}</span>
-            )}
-          </div>
-          <ThemeEditor
-            theme={theme}
-            onUpdate={handleThemeUpdate}
-            isLocked={isLocked}
-          />
-        </div>
-      )}
-
-      {/* Questions tab */}
-      {activeTab === "questions" && !selectedQuestion && (
+      {!selectedQuestion && (
         <div className="flex flex-col items-center justify-center py-16 text-center">
           <p className="text-sm text-muted-foreground mb-6">
             {questions.length === 0
@@ -338,7 +235,7 @@ function EditorCenter({ study, isLocked }: { study: StudyData; isLocked: boolean
         </div>
       )}
 
-      {activeTab === "questions" && selectedQuestion && (
+      {selectedQuestion && (
         <>
           {/* Question card with inline editor */}
           <SortableQuestion

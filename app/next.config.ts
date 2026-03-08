@@ -8,7 +8,7 @@ const nextConfig: NextConfig = {
         headers: [
           {
             key: "X-Frame-Options",
-            value: "DENY",
+            value: "SAMEORIGIN",
           },
           {
             key: "X-Content-Type-Options",
@@ -30,7 +30,7 @@ const nextConfig: NextConfig = {
               "style-src 'self' 'unsafe-inline'",
               "img-src 'self' blob: https://*.r2.dev https://*.r2.cloudflarestorage.com https://i.ytimg.com https://img.youtube.com data:",
               "media-src 'self' https://*.r2.dev https://*.r2.cloudflarestorage.com https://www.youtube.com",
-              "frame-src https://www.youtube-nocookie.com https://www.youtube.com",
+              "frame-src 'self' https://www.youtube-nocookie.com https://www.youtube.com",
               "font-src 'self'",
               "connect-src 'self' https://*.supabase.co https://*.r2.cloudflarestorage.com https://www.youtube.com https://*.googlevideo.com",
             ].join("; "),
