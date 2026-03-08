@@ -44,6 +44,10 @@ export const createStudySchema = z.object({
         .optional(),
       quota: z.number().int().positive().max(100000).optional(),
       theme: surveyThemeSchema.optional(),
+      thankYouHeading: z.string().max(200).optional(),
+      thankYouBody: z.string().max(2000).optional(),
+      thankYouCtaLabel: z.string().max(100).optional(),
+      thankYouCtaUrl: z.string().url().max(2000).optional(),
     })
     .optional(),
 });
@@ -64,6 +68,10 @@ export const updateStudySchema = z.object({
         .nullable(),
       quota: z.number().int().positive().max(100000).optional().nullable(),
       theme: surveyThemeSchema.optional().nullable(),
+      thankYouHeading: z.string().max(200).optional().nullable(),
+      thankYouBody: z.string().max(2000).optional().nullable(),
+      thankYouCtaLabel: z.string().max(100).optional().nullable(),
+      thankYouCtaUrl: z.string().url().max(2000).optional().nullable(),
     })
     .optional(),
 });

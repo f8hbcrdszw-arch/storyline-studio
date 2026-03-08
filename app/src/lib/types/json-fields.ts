@@ -14,6 +14,10 @@ export interface StudySettings {
   completionRedirectUrl?: string;
   quota?: number;
   theme?: SurveyTheme;
+  thankYouHeading?: string;
+  thankYouBody?: string;
+  thankYouCtaLabel?: string;
+  thankYouCtaUrl?: string;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

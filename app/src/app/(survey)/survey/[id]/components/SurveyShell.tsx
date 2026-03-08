@@ -10,6 +10,28 @@ import type { SurveyTheme } from "@/lib/types/json-fields";
 /** @deprecated Use QuestionData from @/lib/types/question instead */
 export type SurveyQuestion = QuestionData;
 
+/** Estimate survey completion time from question types */
+function estimateMinutes(questions: QuestionData[]): number {
+  const AVG_SECONDS: Record<string, number> = {
+    MULTIPLE_CHOICE: 15,
+    LIKERT: 10,
+    OPEN_TEXT: 45,
+    NUMERIC: 10,
+    AB_TEST: 20,
+    RANKING: 30,
+    MATRIX: 40,
+    MULTI_ITEM_RATING: 25,
+    SENTIMENT: 30,
+    REACTION: 20,
+    VIDEO_DIAL: 120, // video duration varies, use ~2 min estimate
+  };
+  const totalSeconds = questions.reduce(
+    (sum, q) => sum + (AVG_SECONDS[q.type] ?? 20),
+    0
+  );
+  return Math.max(1, Math.round(totalSeconds / 60));
+}
+
 interface StudyData {
   id: string;
   title: string;
@@ -53,6 +75,14 @@ export function SurveyShell({
   const showProgress = (settings.showProgress as boolean) ?? true;
   const themeSettings = settings.theme as SurveyTheme | undefined;
   const progressBarStyle = themeSettings?.progressBarStyle ?? "line";
+
+  // Thank you page customization from settings
+  const thankYouHeading = (settings.thankYouHeading as string) || "Thank You!";
+  const thankYouBody =
+    (settings.thankYouBody as string) ||
+    "Your responses have been recorded. Thank you for participating in this study.";
+  const thankYouCtaLabel = settings.thankYouCtaLabel as string | undefined;
+  const thankYouCtaUrl = settings.thankYouCtaUrl as string | undefined;
 
   // Load study data
   const loadStudy = useCallback(async () => {
@@ -260,6 +290,27 @@ export function SurveyShell({
   // Screens
   // ─────────────────────────────────────────────────────────────────────────
 
+  // Loading skeleton while study data loads
+  if (!study && screen === "consent") {
+    return (
+      <SurveyLayout>
+        <div className="max-w-lg w-full mx-auto space-y-6" aria-busy="true" aria-label="Loading survey">
+          <div className="text-center space-y-3">
+            <div className="h-8 w-64 mx-auto bg-muted rounded animate-pulse" />
+            <div className="h-4 w-80 mx-auto bg-muted rounded animate-pulse" />
+            <div className="h-3 w-32 mx-auto bg-muted rounded animate-pulse" />
+          </div>
+          <div className="rounded-lg border border-border p-4 space-y-2">
+            <div className="h-4 w-24 bg-muted rounded animate-pulse" />
+            <div className="h-3 w-full bg-muted rounded animate-pulse" />
+            <div className="h-3 w-3/4 bg-muted rounded animate-pulse" />
+          </div>
+          <div className="h-11 w-full bg-muted rounded-md animate-pulse" />
+        </div>
+      </SurveyLayout>
+    );
+  }
+
   if (screen === "error") {
     return (
       <SurveyLayout>
@@ -274,9 +325,16 @@ export function SurveyShell({
   }
 
   if (screen === "consent") {
+    const estMinutes = study ? estimateMinutes(study.questions) : null;
+
     return (
       <SurveyLayout>
         <div className="max-w-lg w-full mx-auto space-y-6 screen-enter">
+          {/* Skip to survey content link for screen readers */}
+          <a href="#survey-start" className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:bg-background focus:px-3 focus:py-1 focus:rounded focus:text-sm">
+            Skip to survey
+          </a>
+
           {preview && (
             <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-2 text-center">
               <p className="text-sm font-medium text-amber-800">Preview Mode</p>
@@ -290,6 +348,11 @@ export function SurveyShell({
               Thank you for participating in this study. Your responses are
               anonymous and will be used for research purposes only.
             </p>
+            {estMinutes && (
+              <p className="text-xs text-muted-foreground mt-1">
+                Estimated time: ~{estMinutes} min
+              </p>
+            )}
           </div>
 
           {!preview && (
@@ -386,14 +449,19 @@ export function SurveyShell({
 
     return (
       <SurveyLayout>
-        <div className="text-center max-w-md mx-auto space-y-4 screen-enter">
+        <div className="text-center max-w-md mx-auto space-y-4 screen-enter" role="status">
           <CompletionCheckmark />
-          <h1>Thank You!</h1>
-          <p className="text-sm text-muted-foreground">
-            Your responses have been recorded. Thank you for participating in
-            this study.
-          </p>
-          {redirectUrl && (
+          <h1>{thankYouHeading}</h1>
+          <p className="text-sm text-muted-foreground">{thankYouBody}</p>
+          {thankYouCtaLabel && thankYouCtaUrl && (
+            <a
+              href={thankYouCtaUrl}
+              className="inline-flex items-center gap-1 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 transition-opacity mt-2"
+            >
+              {thankYouCtaLabel}
+            </a>
+          )}
+          {redirectUrl && !thankYouCtaUrl && (
             <a
               href={redirectUrl}
               className="text-sm text-primary hover:underline inline-block mt-2"
@@ -412,7 +480,7 @@ export function SurveyShell({
 
   return (
     <SurveyLayout>
-      <div className="max-w-2xl w-full mx-auto flex flex-col min-h-[60vh]">
+      <div id="survey-start" className="max-w-2xl w-full mx-auto flex flex-col min-h-[60vh]">
         {/* Preview banner */}
         {preview && (
           <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-1.5 text-center mb-4">
@@ -422,15 +490,15 @@ export function SurveyShell({
           </div>
         )}
 
-        {/* Progress */}
+        {/* Progress — aria-live announces changes to screen readers */}
         {showProgress && progressBarStyle !== "hidden" && (
-          <div className="mb-6">
+          <div className="mb-6" role="progressbar" aria-valuemin={0} aria-valuemax={totalQuestions} aria-valuenow={currentIndex + 1} aria-label={`Question ${currentIndex + 1} of ${totalQuestions}`}>
             {progressBarStyle === "fraction" ? (
-              <div className="text-center text-xs text-muted-foreground">
+              <div className="text-center text-xs text-muted-foreground" aria-live="polite">
                 {currentIndex + 1} / {totalQuestions}
               </div>
             ) : progressBarStyle === "dots" ? (
-              <div className="flex justify-center gap-1.5">
+              <div className="flex justify-center gap-1.5" aria-hidden="true">
                 {Array.from({ length: totalQuestions }, (_, i) => (
                   <div
                     key={i}
@@ -464,7 +532,7 @@ export function SurveyShell({
         )}
 
         {/* Question with direction-aware transition */}
-        <div className="flex-1">
+        <div className="flex-1" role="form" aria-label={currentQuestion?.title ?? "Survey question"}>
           {currentQuestion && (
             <div key={transitionKey} className={transitionClass}>
               <QuestionRenderer
