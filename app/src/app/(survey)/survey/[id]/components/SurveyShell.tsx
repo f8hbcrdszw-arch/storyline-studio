@@ -17,6 +17,7 @@ interface StudyData {
 }
 
 type Screen = "consent" | "survey" | "completed" | "screened_out" | "error";
+type Direction = "forward" | "back";
 
 export function SurveyShell({
   studyId,
@@ -41,6 +42,11 @@ export function SurveyShell({
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   const turnstileRef = useRef<TurnstileInstance>(null);
   const turnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
+
+  // Direction tracking for transition animation
+  const [direction, setDirection] = useState<Direction>("forward");
+  // Key to force re-mount + animation on question change
+  const [transitionKey, setTransitionKey] = useState(0);
 
   const allowBack = (settings.allowBackNavigation as boolean) ?? false;
   const showProgress = (settings.showProgress as boolean) ?? true;
@@ -68,7 +74,6 @@ export function SurveyShell({
     setError("");
 
     if (preview) {
-      // Preview mode — no API call, no response created
       setResponseId("preview");
       setScreen("survey");
       setLoading(false);
@@ -108,7 +113,6 @@ export function SurveyShell({
         }
 
         setAnswers(existingAnswers);
-        // Resume from next unanswered question
         setCurrentIndex(
           Math.min(lastAnsweredIndex + 1, study.questions.length - 1)
         );
@@ -120,7 +124,7 @@ export function SurveyShell({
     } finally {
       setLoading(false);
     }
-  }, [study, studyId, preview]);
+  }, [study, studyId, preview, turnstileToken]);
 
   // Load study data on mount
   useEffect(() => {
@@ -130,6 +134,12 @@ export function SurveyShell({
   const currentQuestion = study?.questions[currentIndex];
   const totalQuestions = study?.questions.length || 0;
 
+  const navigateTo = useCallback((index: number, dir: Direction) => {
+    setDirection(dir);
+    setTransitionKey((k) => k + 1);
+    setCurrentIndex(index);
+  }, []);
+
   const submitAnswer = useCallback(
     async (value: unknown) => {
       if (!currentQuestion || !responseId) return;
@@ -138,17 +148,12 @@ export function SurveyShell({
       setError("");
 
       if (preview) {
-        // Preview mode — store locally, advance linearly, no API call
-        setAnswers((prev) => ({
-          ...prev,
-          [currentQuestion.id]: value,
-        }));
-
+        setAnswers((prev) => ({ ...prev, [currentQuestion.id]: value }));
         const nextIndex = currentIndex + 1;
         if (nextIndex >= totalQuestions) {
           setScreen("completed");
         } else {
-          setCurrentIndex(nextIndex);
+          navigateTo(nextIndex, "forward");
         }
         setLoading(false);
         return;
@@ -174,23 +179,16 @@ export function SurveyShell({
 
         const result = await res.json();
 
-        // Store answer locally
-        setAnswers((prev) => ({
-          ...prev,
-          [currentQuestion.id]: value,
-        }));
+        setAnswers((prev) => ({ ...prev, [currentQuestion.id]: value }));
 
-        // Check for screen out
         if (result.screenOut) {
           setScreen("screened_out");
           setLoading(false);
           return;
         }
 
-        // Determine next question
         let nextIndex = currentIndex + 1;
 
-        // Handle skip logic
         if (result.skipToQuestionId && study) {
           const skipIndex = study.questions.findIndex(
             (q) => q.id === result.skipToQuestionId
@@ -200,20 +198,19 @@ export function SurveyShell({
           }
         }
 
-        // Check if survey is complete
         if (nextIndex >= totalQuestions) {
           await completeSurvey();
           return;
         }
 
-        setCurrentIndex(nextIndex);
+        navigateTo(nextIndex, "forward");
       } catch {
         setError("Failed to submit answer");
       } finally {
         setLoading(false);
       }
     },
-    [currentQuestion, responseId, currentIndex, totalQuestions, study, preview]
+    [currentQuestion, responseId, currentIndex, totalQuestions, study, preview, navigateTo]
   );
 
   const completeSurvey = useCallback(async () => {
@@ -233,9 +230,9 @@ export function SurveyShell({
 
   const goBack = useCallback(() => {
     if (currentIndex > 0 && allowBack) {
-      setCurrentIndex(currentIndex - 1);
+      navigateTo(currentIndex - 1, "back");
     }
-  }, [currentIndex, allowBack]);
+  }, [currentIndex, allowBack, navigateTo]);
 
   // Update browser history for back button support
   useEffect(() => {
@@ -245,9 +242,8 @@ export function SurveyShell({
 
       const handlePopState = (e: PopStateEvent) => {
         if (allowBack && e.state?.index !== undefined) {
-          setCurrentIndex(e.state.index);
+          navigateTo(e.state.index, "back");
         } else {
-          // Push state back to prevent leaving
           window.history.pushState(state, "", "");
         }
       };
@@ -255,7 +251,7 @@ export function SurveyShell({
       window.addEventListener("popstate", handlePopState);
       return () => window.removeEventListener("popstate", handlePopState);
     }
-  }, [screen, currentIndex, allowBack]);
+  }, [screen, currentIndex, allowBack, navigateTo]);
 
   // ─────────────────────────────────────────────────────────────────────────
   // Screens
@@ -264,7 +260,7 @@ export function SurveyShell({
   if (screen === "error") {
     return (
       <SurveyLayout>
-        <div className="text-center">
+        <div className="text-center screen-enter">
           <h1 className="mb-2">Survey Unavailable</h1>
           <p className="text-sm text-muted-foreground">
             This survey could not be loaded. Please try again later.
@@ -277,7 +273,7 @@ export function SurveyShell({
   if (screen === "consent") {
     return (
       <SurveyLayout>
-        <div className="max-w-lg w-full mx-auto space-y-6">
+        <div className="max-w-lg w-full mx-auto space-y-6 screen-enter">
           {preview && (
             <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-2 text-center">
               <p className="text-sm font-medium text-amber-800">Preview Mode</p>
@@ -341,7 +337,7 @@ export function SurveyShell({
   if (screen === "screened_out") {
     return (
       <SurveyLayout>
-        <div className="text-center max-w-md mx-auto">
+        <div className="text-center max-w-md mx-auto screen-enter">
           <h1 className="mb-2">Thank You</h1>
           <p className="text-sm text-muted-foreground">
             Based on your responses, you do not qualify for this particular
@@ -358,10 +354,11 @@ export function SurveyShell({
     if (preview) {
       return (
         <SurveyLayout>
-          <div className="text-center max-w-md mx-auto space-y-4">
+          <div className="text-center max-w-md mx-auto space-y-4 screen-enter">
             <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-2">
               <p className="text-sm font-medium text-amber-800">Preview Complete</p>
             </div>
+            <CompletionCheckmark />
             <h1>Survey Finished</h1>
             <p className="text-sm text-muted-foreground">
               You&apos;ve reached the end of the survey. No responses were recorded.
@@ -374,6 +371,7 @@ export function SurveyShell({
                 setAnswers({});
                 setResponseId(null);
                 setError("");
+                setTransitionKey(0);
               }}
             >
               Restart Preview
@@ -385,7 +383,8 @@ export function SurveyShell({
 
     return (
       <SurveyLayout>
-        <div className="text-center max-w-md mx-auto space-y-4">
+        <div className="text-center max-w-md mx-auto space-y-4 screen-enter">
+          <CompletionCheckmark />
           <h1>Thank You!</h1>
           <p className="text-sm text-muted-foreground">
             Your responses have been recorded. Thank you for participating in
@@ -405,6 +404,9 @@ export function SurveyShell({
   }
 
   // Survey screen
+  const transitionClass =
+    direction === "forward" ? "survey-enter-forward" : "survey-enter-back";
+
   return (
     <SurveyLayout>
       <div className="max-w-2xl w-full mx-auto flex flex-col min-h-[60vh]">
@@ -430,7 +432,7 @@ export function SurveyShell({
             </div>
             <div className="h-1.5 bg-muted rounded-full overflow-hidden">
               <div
-                className="h-full bg-primary rounded-full transition-all duration-300"
+                className="h-full bg-primary rounded-full progress-bar-fill"
                 style={{
                   width: `${((currentIndex + 1) / totalQuestions) * 100}%`,
                 }}
@@ -439,17 +441,19 @@ export function SurveyShell({
           </div>
         )}
 
-        {/* Question */}
+        {/* Question with direction-aware transition */}
         <div className="flex-1">
           {currentQuestion && (
-            <QuestionRenderer
-              key={currentQuestion.id}
-              question={currentQuestion}
-              existingAnswer={answers[currentQuestion.id]}
-              onSubmit={submitAnswer}
-              onBack={allowBack && currentIndex > 0 ? goBack : undefined}
-              loading={loading}
-            />
+            <div key={transitionKey} className={transitionClass}>
+              <QuestionRenderer
+                key={currentQuestion.id}
+                question={currentQuestion}
+                existingAnswer={answers[currentQuestion.id]}
+                onSubmit={submitAnswer}
+                onBack={allowBack && currentIndex > 0 ? goBack : undefined}
+                loading={loading}
+              />
+            </div>
           )}
         </div>
 
@@ -460,6 +464,52 @@ export function SurveyShell({
     </SurveyLayout>
   );
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Completion checkmark (SVG with draw animation)
+// ─────────────────────────────────────────────────────────────────────────────
+
+function CompletionCheckmark() {
+  return (
+    <div className="flex justify-center">
+      <svg
+        width="64"
+        height="64"
+        viewBox="0 0 64 64"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <circle
+          cx="32"
+          cy="32"
+          r="30"
+          stroke="currentColor"
+          strokeWidth="2"
+          className="text-primary/20 check-circle"
+        />
+        <circle
+          cx="32"
+          cy="32"
+          r="30"
+          fill="currentColor"
+          className="text-primary/10 check-circle"
+        />
+        <path
+          d="M20 33 L28 41 L44 25"
+          stroke="currentColor"
+          strokeWidth="3"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="text-primary check-mark"
+        />
+      </svg>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Layout wrapper
+// ─────────────────────────────────────────────────────────────────────────────
 
 function SurveyLayout({ children }: { children: React.ReactNode }) {
   return (

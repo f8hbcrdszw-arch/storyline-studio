@@ -206,7 +206,14 @@
   @apply text-[10px] uppercase tracking-[0.15em] font-normal;
 }
 
-/* ── Entrance animation for survey questions ──────────── */
+/* ── Survey question transitions ──────────────────────── */
+
+/* Apple-style deceleration easing */
+:root {
+  --ease-spring: cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* Legacy entrance animation (kept for non-survey uses) */
 @keyframes fadeInUp {
   from {
     opacity: 0;
@@ -219,6 +226,116 @@
 }
 .animate-fade-in-up {
   animation: fadeInUp 0.3s ease-out;
+}
+
+/* ── Direction-aware slide transitions ────────────────── */
+
+/* Enter from right (forward navigation) */
+@keyframes slideInFromRight {
+  from {
+    opacity: 0;
+    transform: translateX(30%);
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+    filter: blur(0);
+  }
+}
+
+/* Enter from left (back navigation) */
+@keyframes slideInFromLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-20%);
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+    filter: blur(0);
+  }
+}
+
+/* Fade + subtle vertical shift */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.survey-enter-forward {
+  animation: slideInFromRight 0.4s var(--ease-spring);
+}
+.survey-enter-back {
+  animation: slideInFromLeft 0.35s var(--ease-spring);
+}
+.survey-enter-fade {
+  animation: fadeIn 0.35s var(--ease-spring);
+}
+
+/* ── Progress bar spring animation ────────────────────── */
+.progress-bar-fill {
+  transition: width 0.5s var(--ease-spring);
+}
+
+/* ── Option selection bounce ──────────────────────────── */
+@keyframes optionBounce {
+  0%   { transform: scale(1); }
+  50%  { transform: scale(1.015); }
+  100% { transform: scale(1); }
+}
+.option-selected {
+  animation: optionBounce 0.2s var(--ease-spring);
+}
+
+/* ── Completion checkmark draw ────────────────────────── */
+@keyframes checkDraw {
+  from {
+    stroke-dashoffset: 40;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes circleGrow {
+  from {
+    transform: scale(0);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+.check-circle {
+  animation: circleGrow 0.4s var(--ease-spring) forwards;
+}
+.check-mark {
+  stroke-dasharray: 40;
+  stroke-dashoffset: 40;
+  animation: checkDraw 0.3s var(--ease-spring) 0.3s forwards;
+}
+
+/* ── Screen transition fade ───────────────────────────── */
+@keyframes screenFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+.screen-enter {
+  animation: screenFadeIn 0.35s var(--ease-spring);
 }
 
 /* ── Status dot indicators ──────────────────────────────── */
