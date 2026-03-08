@@ -4,6 +4,7 @@ import { Prisma } from "@/generated/prisma/client";
 import { withErrorHandler } from "@/lib/api/error-handler";
 import { rateLimit, RATE_LIMITS } from "@/lib/api/rate-limit";
 import { createResponseSchema } from "@/lib/schemas/answer";
+import { verifyTurnstileToken } from "@/lib/turnstile";
 import { randomUUID } from "crypto";
 
 // POST /api/responses — create a new response (or resume existing)
@@ -13,7 +14,19 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
   if (limited) return limited;
 
   const body = await request.json();
-  const { studyId } = createResponseSchema.parse(body);
+  const { studyId, turnstileToken } = createResponseSchema.parse(body);
+
+  // Verify Turnstile token (skipped if TURNSTILE_SECRET_KEY not set)
+  if (process.env.TURNSTILE_SECRET_KEY) {
+    if (!turnstileToken) {
+      return NextResponse.json({ error: "Verification required" }, { status: 400 });
+    }
+    const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
+    const valid = await verifyTurnstileToken(turnstileToken, ip);
+    if (!valid) {
+      return NextResponse.json({ error: "Verification failed" }, { status: 403 });
+    }
+  }
 
   // Verify study is active
   const study = await prisma.study.findUnique({
@@ -34,7 +47,7 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
 
   // Check respondent quota
   const settings = study.settings as Record<string, unknown> | null;
-  const maxResponses = typeof settings?.maxResponses === "number" ? settings.maxResponses : null;
+  const maxResponses = typeof settings?.quota === "number" ? settings.quota : null;
 
   if (maxResponses !== null) {
     const completedCount = await prisma.response.count({

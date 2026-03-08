@@ -56,8 +56,10 @@ const videoDialAnswer = z.object({
   sliderInteracted: z.boolean(),
 });
 
+import type { QuestionType } from "./question";
+
 /** Map question type → answer value schema */
-export const answerSchemaByType: Record<string, z.ZodType> = {
+export const answerSchemaByType: Record<QuestionType, z.ZodType> = {
   VIDEO_DIAL: videoDialAnswer,
   MULTIPLE_CHOICE: multipleChoiceAnswer,
   LIKERT: likertAnswer,
@@ -83,4 +85,5 @@ export const submitAnswerSchema = z.object({
 
 export const createResponseSchema = z.object({
   studyId: z.string().uuid(),
+  turnstileToken: z.string().optional(),
 });

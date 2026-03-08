@@ -140,7 +140,7 @@ export function SkipLogicEditor({
                 disabled={isLocked}
                 className="rounded"
               />
-              Screen out
+              Terminate
             </label>
 
             {!rule.screenOut && (

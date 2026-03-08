@@ -38,6 +38,12 @@ export interface QuestionConfig {
   maxAnnotationLength?: number;
   maxLength?: number;
   placeholder?: string;
+  // Video dial specific
+  mode?: "intensity" | "sentiment";
+  actionButtons?: { id: string; label: string; icon?: string }[];
+  showAnnotation?: boolean;
+  annotationPrompt?: string;
+  annotationPlaceholder?: string;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -72,7 +78,7 @@ export interface ResponseMetadata {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface VideoDialAnswerValue {
-  feedback: Record<number, number>;
+  feedback: Record<string, number>;
   lightbulbs: number[];
   actions?: Record<string, number[]>;
   annotations?: string[];

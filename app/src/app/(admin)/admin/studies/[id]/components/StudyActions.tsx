@@ -6,7 +6,53 @@ import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast";
 import { Copy, Check } from "lucide-react";
-import confetti from "canvas-confetti";
+
+const CONFETTI_COLORS = ["#121C8A", "#F4F3EF", "#100C21", "#6366f1", "#818cf8"];
+
+function fireConfetti() {
+  const container = document.createElement("div");
+  container.style.cssText =
+    "position:fixed;inset:0;pointer-events:none;z-index:9999;overflow:hidden";
+  document.body.appendChild(container);
+
+  // Inject keyframes once
+  if (!document.getElementById("confetti-style")) {
+    const style = document.createElement("style");
+    style.id = "confetti-style";
+    style.textContent = `
+      @keyframes confetti-fall {
+        0% { opacity:1; transform:translateY(0) translateX(0) rotate(0deg); }
+        25% { opacity:1; }
+        100% { opacity:0; transform:translateY(var(--dy)) translateX(var(--dx)) rotate(var(--r)); }
+      }
+    `;
+    document.head.appendChild(style);
+  }
+
+  // Pieces fall from top like real confetti
+  for (let i = 0; i < 120; i++) {
+    const piece = document.createElement("div");
+    const color = CONFETTI_COLORS[Math.floor(Math.random() * CONFETTI_COLORS.length)];
+    const left = Math.random() * 100;
+    const size = 8 + Math.random() * 8;
+    const xDrift = (Math.random() - 0.5) * 200;
+    const fallDistance = 600 + Math.random() * 400;
+    const duration = 1700 + Math.random() * 1125;
+    const delay = Math.random() * 340;
+    const spin = 360 + Math.random() * 720;
+
+    piece.style.cssText = `
+      position:absolute;left:${left}%;top:-20px;
+      width:${size}px;height:${size * (0.4 + Math.random() * 0.5)}px;
+      background:${color};border-radius:${Math.random() > 0.5 ? "50%" : "2px"};
+      animation:confetti-fall ${duration}ms ${delay}ms ease-in forwards;
+      --dy:${fallDistance}px;--dx:${xDrift}px;--r:${spin}deg;
+    `;
+    container.appendChild(piece);
+  }
+
+  setTimeout(() => container.remove(), 3400);
+}
 
 const TRANSITIONS: Record<string, { label: string; variant: "default" | "outline" | "destructive"; confirm?: string }[]> = {
   DRAFT: [
@@ -21,6 +67,7 @@ const TRANSITIONS: Record<string, { label: string; variant: "default" | "outline
     { label: "Close", variant: "destructive", confirm: "Close this study? No new responses will be accepted." },
   ],
   CLOSED: [
+    { label: "Reopen", variant: "default", confirm: "Reopen this study? It will start accepting responses again." },
     { label: "Archive", variant: "outline", confirm: "Archive this study?" },
   ],
   ARCHIVED: [],
@@ -30,6 +77,7 @@ const STATUS_MAP: Record<string, string> = {
   "Publish Study": "ACTIVE",
   Pause: "PAUSED",
   Resume: "ACTIVE",
+  Reopen: "ACTIVE",
   Close: "CLOSED",
   Archive: "ARCHIVED",
 };
@@ -122,20 +170,14 @@ export function StudyActions({
       const data = await res.json();
       setSurveyUrl(data.surveyUrl);
       setJustPublished(true);
-      router.refresh();
-
-      // Celebration
-      if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-        confetti({
-          particleCount: 80,
-          spread: 60,
-          origin: { y: 0.7 },
-          colors: ["#121C8A", "#F4F3EF", "#100C21"],
-        });
-      }
       toast("Your study is live!", "success");
+      // Fire confetti, then refresh after animation completes
+      try { fireConfetti(); } catch (e) { console.error("Confetti error:", e); }
+      setTimeout(() => router.refresh(), 4000);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to publish");
+      const msg = err instanceof Error ? err.message : "Failed to publish";
+      console.error("Publish error:", msg);
+      setError(msg);
     } finally {
       setLoading(false);
     }

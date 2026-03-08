@@ -26,6 +26,7 @@ export function MediaUploader({
   const [deleting, setDeleting] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const [fileInputKey, setFileInputKey] = useState(0);
 
   const handleDelete = useCallback(
     async (id: string) => {
@@ -36,10 +37,10 @@ export function MediaUploader({
         if (res.ok) {
           onMediaRemoved(id);
         } else {
-          setError("Failed to remove media");
+          setError("Couldn't remove media. Please try again.");
         }
       } catch {
-        setError("Failed to remove media");
+        setError("Couldn't remove media. Please try again.");
       } finally {
         setDeleting(null);
       }
@@ -58,7 +59,8 @@ export function MediaUploader({
       try {
         const mediaType = file.type.startsWith("video/") ? "video" : "image";
 
-        // Get presigned upload URL
+        // Step 1: Get presigned upload URL
+        console.log("[upload] step 1: requesting presigned URL", { contentType: file.type, mediaType, filename: file.name });
         const presignRes = await fetch("/api/upload", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -70,24 +72,36 @@ export function MediaUploader({
         });
 
         if (!presignRes.ok) {
-          const data = await presignRes.json();
-          throw new Error(data.error || "Failed to get upload URL");
+          const data = await presignRes.json().catch(() => ({}));
+          console.error("[upload] step 1 failed:", presignRes.status, data);
+          throw new Error(data.error || "server");
         }
 
         const { uploadUrl, key } = await presignRes.json();
+        console.log("[upload] step 1 ok, key:", key);
 
-        // Upload directly to R2
-        const uploadRes = await fetch(uploadUrl, {
-          method: "PUT",
-          body: file,
-          headers: { "Content-Type": file.type },
-        });
-
-        if (!uploadRes.ok) {
-          throw new Error("Upload failed");
+        // Step 2: Upload directly to R2
+        console.log("[upload] step 2: uploading to R2", { size: file.size, type: file.type });
+        let uploadRes: Response;
+        try {
+          uploadRes = await fetch(uploadUrl, {
+            method: "PUT",
+            body: file,
+            headers: { "Content-Type": file.type },
+          });
+        } catch (e) {
+          console.error("[upload] step 2 network error:", e);
+          throw new Error("storage");
         }
 
-        // Create media item record
+        if (!uploadRes.ok) {
+          console.error("[upload] step 2 failed:", uploadRes.status, await uploadRes.text().catch(() => ""));
+          throw new Error("storage");
+        }
+        console.log("[upload] step 2 ok");
+
+        // Step 3: Create media item record
+        console.log("[upload] step 3: creating media item record");
         const mediaRes = await fetch("/api/media-items", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -100,14 +114,24 @@ export function MediaUploader({
           }),
         });
 
-        if (mediaRes.ok) {
-          const item = await mediaRes.json();
-          onMediaAdded(item);
+        if (!mediaRes.ok) {
+          console.error("[upload] step 3 failed:", mediaRes.status, await mediaRes.json().catch(() => ({})));
+          throw new Error("server");
         }
+        console.log("[upload] step 3 ok");
+
+        const item = await mediaRes.json();
+        onMediaAdded(item);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Upload failed");
+        const code = err instanceof Error ? err.message : "";
+        const message =
+          code === "storage"
+            ? "Upload failed — please try again or use a smaller file"
+            : "Something went wrong. Please try again.";
+        setError(message);
       } finally {
         setUploading(false);
+        setFileInputKey((k) => k + 1);
       }
     },
     [questionId, onMediaAdded]
@@ -143,7 +167,7 @@ export function MediaUploader({
         setYoutubeUrl("");
       }
     } catch {
-      setError("Failed to add YouTube video");
+      setError("Couldn't add video. Please check the URL and try again.");
     } finally {
       setUploading(false);
     }
@@ -224,6 +248,7 @@ export function MediaUploader({
           {mode === "upload" ? (
             <div>
               <input
+                key={fileInputKey}
                 type="file"
                 accept="video/mp4,video/webm,video/quicktime,image/jpeg,image/png,image/webp"
                 onChange={handleFileUpload}

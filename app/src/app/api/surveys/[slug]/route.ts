@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { withErrorHandler } from "@/lib/api/error-handler";
+import { createSignedReadUrl } from "@/lib/storage";
 
 // GET /api/surveys/[slug] — public endpoint to fetch study data for survey rendering
 export const GET = withErrorHandler(
@@ -10,8 +11,10 @@ export const GET = withErrorHandler(
   ) => {
     const { slug } = await params;
 
-    const study = await prisma.study.findUnique({
-      where: { slug },
+    // Support lookup by slug or ID (preview uses study ID)
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(slug);
+    const study = await prisma.study.findFirst({
+      where: isUuid ? { OR: [{ slug }, { id: slug }] } : { slug },
       select: {
         id: true,
         title: true,
@@ -61,13 +64,30 @@ export const GET = withErrorHandler(
       return NextResponse.json({ error: "Survey not found" }, { status: 404 });
     }
 
-    if (study.status !== "ACTIVE") {
+    const isPreview = request.nextUrl.searchParams.get("preview") === "true";
+
+    if (!isPreview && study.status !== "ACTIVE") {
       return NextResponse.json(
         { error: "This survey is not currently accepting responses" },
         { status: 410 }
       );
     }
 
-    return NextResponse.json(study);
+    // Sign option image URLs (R2 keys → signed URLs)
+    for (const q of study.questions) {
+      for (const opt of q.options) {
+        if (opt.imageUrl && !opt.imageUrl.startsWith("http")) {
+          opt.imageUrl = await createSignedReadUrl(opt.imageUrl);
+        }
+      }
+    }
+
+    const res = NextResponse.json(study);
+    // Study structure rarely changes mid-session — cache briefly
+    res.headers.set(
+      "Cache-Control",
+      "public, s-maxage=60, stale-while-revalidate=300"
+    );
+    return res;
   }
 );

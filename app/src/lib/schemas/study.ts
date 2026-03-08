@@ -8,12 +8,14 @@ export const STUDY_STATUSES = [
   "ARCHIVED",
 ] as const;
 
+export type StudyStatus = (typeof STUDY_STATUSES)[number];
+
 /** Valid status transitions: from → allowed targets */
-export const VALID_TRANSITIONS: Record<string, string[]> = {
+export const VALID_TRANSITIONS: Record<StudyStatus, readonly StudyStatus[]> = {
   DRAFT: ["ACTIVE"],
   ACTIVE: ["PAUSED", "CLOSED"],
   PAUSED: ["ACTIVE", "CLOSED"],
-  CLOSED: ["ARCHIVED"],
+  CLOSED: ["ACTIVE", "ARCHIVED"],
   ARCHIVED: [],
 };
 

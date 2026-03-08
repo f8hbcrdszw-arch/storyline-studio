@@ -2,8 +2,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-import { StatusDot } from "@/components/ui/status-dot";
-import { ChevronRight } from "lucide-react";
+import { StudyList } from "./components/StudyList";
 
 export default async function StudiesPage() {
   const supabase = await createSupabaseServerClient();
@@ -32,14 +31,35 @@ export default async function StudiesPage() {
         </div>
         <Link
           href="/admin/studies/new"
-          className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 shadow-sm"
+          className="group inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground shadow-sm shadow-primary/25 hover:shadow-md hover:shadow-primary/30 hover:bg-primary/90 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200"
         >
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className="transition-transform duration-300 group-hover:rotate-90">
             <path d="M7 1v12M1 7h12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
           </svg>
           New Study
         </Link>
       </div>
+
+      {studies.length > 0 && (() => {
+        const active = studies.filter((s) => s.status === "ACTIVE").length;
+        const closed = studies.filter((s) => s.status === "CLOSED").length;
+        const totalResponses = studies.reduce((sum, s) => sum + s._count.responses, 0);
+        return (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6 animate-in fade-in slide-in-from-bottom-1 duration-300 delay-75">
+            {[
+              { label: "Active", value: active, accent: "text-emerald-500" },
+              { label: "Closed", value: closed, accent: "text-amber-500" },
+              { label: "Total Studies", value: studies.length, accent: "text-foreground" },
+              { label: "Responses", value: totalResponses, accent: "text-foreground" },
+            ].map((stat) => (
+              <div key={stat.label} className="rounded-lg border border-border bg-card px-4 py-3">
+                <p className="text-xs text-muted-foreground">{stat.label}</p>
+                <p className={`text-xl font-semibold mt-0.5 ${stat.accent}`}>{stat.value}</p>
+              </div>
+            ))}
+          </div>
+        );
+      })()}
 
       {studies.length === 0 ? (
         <div className="rounded-xl border border-primary/10 bg-primary/[0.03] p-16 text-center animate-in fade-in slide-in-from-bottom-2 duration-300 delay-100">
@@ -61,27 +81,8 @@ export default async function StudiesPage() {
           </Link>
         </div>
       ) : (
-        <div className="border-t border-border animate-in fade-in duration-300 delay-100">
-          {studies.map((study) => (
-            <Link
-              key={study.id}
-              href={`/admin/studies/${study.id}`}
-              className="group flex items-center justify-between border-b border-border py-3 px-2 hover:bg-accent/30 -mx-1 rounded-md"
-            >
-              <div className="min-w-0">
-                <p className="text-sm font-medium text-foreground group-hover:text-primary truncate">
-                  {study.title}
-                </p>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  {study._count.questions} {study._count.questions === 1 ? "question" : "questions"} · {study._count.responses} {study._count.responses === 1 ? "response" : "responses"}
-                </p>
-              </div>
-              <div className="flex items-center gap-3 shrink-0 ml-4">
-                <StatusDot status={study.status} />
-                <ChevronRight className="w-4 h-4 text-muted-foreground opacity-0 -translate-x-1 group-hover:opacity-60 group-hover:translate-x-0 transition-all duration-150" />
-              </div>
-            </Link>
-          ))}
+        <div className="animate-in fade-in duration-300 delay-100">
+          <StudyList studies={studies} />
         </div>
       )}
     </div>

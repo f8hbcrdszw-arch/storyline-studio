@@ -587,13 +587,13 @@ const playerVars: YT.PlayerVars = {
   - Tailwind theme: extend with Storyline colors (`cream`, `navy`, `storyline-blue`) and font families (`sans`, `display`, `mono`)
   - Map brand colors to shadcn/ui CSS variables (`--background`, `--foreground`, `--primary`)
   - Route groups ensure separate bundles — survey never includes admin deps
-- [ ] Set up Supabase project (Postgres + Auth)
+- [x] Set up Supabase project (Postgres + Auth)
 - [x] Define Prisma schema with all models, enums, indexes, and constraints
   - Core models: `Study`, `Question`, `QuestionOption`, `MediaItem`, `Response`, `Answer`, `DialDataPoint`
   - Supporting models: `ExportJob`, `AuditLog`, `DialEvent`
   - All UNIQUE constraints (`response_id + question_id` on Answer, etc.)
   - Configure dual connection strings (PgBouncer pooled + direct for migrations)
-- [ ] Run initial migrations
+- [x] Run initial migrations (via db push; baseline needed for migrate workflow)
 - [x] Set up Supabase Auth for admin users (email/password + **MFA required**)
 - [x] Implement API middleware: `requireAdmin.ts`, `requireRespondent.ts`
 - [x] **Security baseline:**
@@ -633,10 +633,10 @@ const playerVars: YT.PlayerVars = {
 
 **Goal:** Admin can build a complete study with all question types, ordered across phases.
 
-- [ ] Build question list view within study editor (drag-drop reordering via `@dnd-kit`)
-- [ ] Phase tabs/sections: Screening, Pre-Ballot, Stimulus, Post-Ballot
-- [ ] Question type selector (dropdown with all 17 types + icons)
-- [ ] Question configuration forms per type:
+- [x] Build question list view within study editor (drag-drop reordering via `@dnd-kit`)
+- [x] Phase tabs/sections: Screening, Pre-Ballot, Stimulus, Post-Ballot
+- [x] Question type selector (grid modal with question type categories)
+- [x] Question configuration forms per type:
   - **List types** (STANDARD_LIST, WORD_LIST, IMAGE_LIST): options editor, selection limit
   - **Likert types** (LIKERT, MULTI_LIKERT): scale range, label customization, multi-item editor
   - **Text/Write types** (WRITE_IN, CREATIVE_COPY): prompt config
@@ -651,7 +651,7 @@ const playerVars: YT.PlayerVars = {
 - [x] Mark questions as screening/segmentation questions
 - [x] Skip logic builder: if answer to Q[x] equals [value], skip to Q[y] or terminate
   - Validate referential integrity on save (target exists, is later in order)
-- [ ] Study preview mode (read-only walk-through)
+- [x] Study preview mode (preview flag on survey route, bypasses status check)
 - [x] Study lifecycle management: Draft → Active → Paused → Closed → Archived
 - [x] Publish study → generates shareable link, sets status to `active`
 - [x] Lock structural edits on studies with existing responses
@@ -683,7 +683,7 @@ const playerVars: YT.PlayerVars = {
   - 60 answer submissions per minute per IP
   - 5 new respondent IDs per IP per hour
   - Response velocity checks: flag suspiciously fast completions
-- [ ] **Bot detection**: invisible reCAPTCHA v3 before first question
+- [x] **Bot detection**: Cloudflare Turnstile (invisible) on consent screen
 - [x] **Single API call** to fetch all study questions on load (cache in client state)
 - [x] Session resume: returning respondent picks up from last unanswered question
 - [x] Survey shell: section-based progress bar, question counter, next/back navigation
@@ -691,7 +691,7 @@ const playerVars: YT.PlayerVars = {
   - Bottom-anchored "Next" button within thumb reach
   - Estimated time remaining instead of raw question count
 - [x] Browser back button handling via `history.pushState`
-- [ ] **Dynamic imports** for question type components (only load current type's code)
+- [x] **Dynamic imports** for question type components (next/dynamic, per-type lazy loading)
 - [x] Render each question type as respondent-facing component:
   - All 16 non-video types with touch-friendly targets (min 44x44 CSS px)
   - Single-column mobile layout, no horizontal scrolling

@@ -1,8 +1,7 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
-import { Select } from "@/components/ui/select";
 import type { QuestionData, QuestionOption, MediaItemData } from "./StudyEditor";
 import { MediaUploader } from "./MediaUploader";
 import { SkipLogicEditor } from "./SkipLogicEditor";
@@ -21,6 +20,7 @@ const OPTION_TYPES = new Set([
   "RANKING",
   "SENTIMENT",
   "REACTION",
+  "MULTI_ITEM_RATING",
 ]);
 
 // Types that need likert config
@@ -32,10 +32,9 @@ const NUMERIC_TYPES = new Set(["NUMERIC"]);
 // Types that need matrix (grid) config
 const MATRIX_TYPES = new Set(["MATRIX"]);
 
-// Types that support media attachments
+// Types that support media attachments (question-level, not per-option)
 const MEDIA_TYPES = new Set([
   "VIDEO_DIAL",
-  "AB_TEST",
   "SENTIMENT",
 ]);
 
@@ -44,13 +43,18 @@ export function QuestionEditor({
   allQuestions,
   isLocked,
   onUpdate,
+  onDuplicateToPhase,
 }: {
   question: QuestionData;
   allQuestions: QuestionData[];
   isLocked: boolean;
   onUpdate: (updates: Partial<QuestionData>) => void;
+  onDuplicateToPhase?: (question: QuestionData, targetPhase: string) => Promise<string | null>;
 }) {
   const [saving, setSaving] = useState(false);
+  const [saveResult, setSaveResult] = useState<"saved" | "error" | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [duplicating, setDuplicating] = useState(false);
   const [title, setTitle] = useState(question.title);
   const [prompt, setPrompt] = useState(question.prompt || "");
   const [phase, setPhase] = useState(question.phase);
@@ -63,6 +67,8 @@ export function QuestionEditor({
 
   const save = useCallback(async () => {
     setSaving(true);
+    setSaveResult(null);
+    setSaveError(null);
     const body: Record<string, unknown> = {
       title,
       prompt: prompt || null,
@@ -77,23 +83,35 @@ export function QuestionEditor({
       body.options = options;
     }
 
-    const res = await fetch(`/api/questions/${question.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-
-    if (res.ok) {
-      const updated = await res.json();
-      onUpdate({
-        title,
-        prompt: prompt || null,
-        phase,
-        required,
-        isScreening,
-        config,
-        options: updated.options ?? options,
+    try {
+      const res = await fetch(`/api/questions/${question.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
       });
+
+      if (res.ok) {
+        const updated = await res.json();
+        onUpdate({
+          title,
+          prompt: prompt || null,
+          phase,
+          required,
+          isScreening,
+          config,
+          options: updated.options ?? options,
+        });
+        setSaveResult("saved");
+      } else {
+        const errBody = await res.json().catch(() => ({}));
+        console.error("[save] failed:", res.status, errBody);
+        setSaveResult("error");
+        if (errBody.details) {
+          setSaveError(errBody.details.map((d: { path: string; message: string }) => `${d.path}: ${d.message}`).join(", "));
+        }
+      }
+    } catch {
+      setSaveResult("error");
     }
     setSaving(false);
   }, [
@@ -109,6 +127,8 @@ export function QuestionEditor({
     onUpdate,
   ]);
 
+  const markDirty = useCallback(() => { setSaveResult(null); setSaveError(null); }, []);
+
   const addOption = useCallback(() => {
     const nextOrder = options.length;
     setOptions((prev) => [
@@ -121,11 +141,13 @@ export function QuestionEditor({
         imageUrl: null,
       },
     ]);
-  }, [options.length]);
+    markDirty();
+  }, [options.length, markDirty]);
 
   const removeOption = useCallback((index: number) => {
     setOptions((prev) => prev.filter((_, i) => i !== index));
-  }, []);
+    markDirty();
+  }, [markDirty]);
 
   const updateOption = useCallback(
     (index: number, field: keyof QuestionOption, value: string) => {
@@ -134,89 +156,152 @@ export function QuestionEditor({
           i === index ? { ...opt, [field]: value } : opt
         )
       );
+      markDirty();
     },
-    []
+    [markDirty]
   );
 
   const updateConfig = useCallback(
     (key: string, value: unknown) => {
       setConfig((prev) => ({ ...prev, [key]: value }));
+      markDirty();
     },
-    []
+    [markDirty]
   );
 
   return (
-    <div className="mt-3 pt-3 border-t border-border space-y-4">
-      {/* Title */}
+    <div className="mt-3 pt-3 border-t border-border space-y-5">
+      {/* Question text */}
       <div>
         <label className="text-xs font-medium text-muted-foreground block mb-1">
-          Title
+          Question Text
+          <span className="font-normal text-muted-foreground/60 ml-1">required</span>
         </label>
         <input
           type="text"
           value={title}
-          onChange={(e) => setTitle(e.target.value)}
+          onChange={(e) => { setTitle(e.target.value); markDirty(); }}
           disabled={isLocked}
-          className="w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm"
+          className={`w-full rounded-md border bg-background px-3 py-1.5 text-sm ${
+            title.trim() === "" ? "border-destructive/50" : "border-input"
+          }`}
+          placeholder="What respondents will see..."
         />
+        <p className="text-[10px] text-muted-foreground mt-1">Visible to respondents</p>
       </div>
 
-      {/* Prompt */}
+      {/* Instructions */}
       <div>
         <label className="text-xs font-medium text-muted-foreground block mb-1">
-          Prompt / Instructions
+          Instructions
+          <span className="font-normal text-muted-foreground/60 ml-1">optional</span>
         </label>
         <textarea
           value={prompt}
-          onChange={(e) => setPrompt(e.target.value)}
+          onChange={(e) => { setPrompt(e.target.value); markDirty(); }}
           disabled={isLocked}
           rows={2}
           className="w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm resize-none"
-          placeholder="Optional instructions shown to respondents..."
+          placeholder="Additional context or directions for this question..."
         />
       </div>
 
-      {/* Phase + toggles row */}
-      <div className="flex items-center gap-4 flex-wrap">
+      {/* Phase + settings */}
+      <div className="rounded-lg border border-border p-3 space-y-3">
         <div>
-          <label className="text-xs font-medium text-muted-foreground block mb-1">
+          <label className="text-xs font-medium text-muted-foreground block mb-1.5">
             Phase
           </label>
-          <Select
-            value={phase}
-            onChange={(e) => setPhase(e.target.value)}
-            disabled={isLocked}
-            className="w-auto"
-          >
+          <div className="flex gap-1">
             {PHASE_OPTIONS.map((p) => (
-              <option key={p.value} value={p.value}>
+              <button
+                key={p.value}
+                onClick={() => { setPhase(p.value); markDirty(); }}
+                disabled={isLocked}
+                className={`px-3 py-1.5 text-xs rounded-md transition-colors ${
+                  phase === p.value
+                    ? "bg-primary text-primary-foreground font-medium"
+                    : "bg-muted text-muted-foreground hover:text-foreground"
+                } disabled:opacity-50 disabled:cursor-not-allowed`}
+              >
                 {p.label}
-              </option>
+              </button>
             ))}
-          </Select>
+          </div>
         </div>
 
-        <label className="flex items-center gap-1.5 text-sm">
-          <input
-            type="checkbox"
-            checked={required}
-            onChange={(e) => setRequired(e.target.checked)}
-            disabled={isLocked}
-            className="rounded"
-          />
-          Required
-        </label>
+        {/* Post-ballot pair prompt */}
+        {phase === "PRE_BALLOT" && onDuplicateToPhase && !isLocked && (
+          <div className="bg-blue-50 border border-blue-200 rounded-md px-3 py-2">
+            {allQuestions.some(
+              (q) =>
+                q.id !== question.id &&
+                q.phase === "POST_BALLOT" &&
+                q.type === question.type &&
+                q.title === question.title
+            ) ? (
+              <p className="text-xs text-blue-600">
+                Post-ballot pair exists
+              </p>
+            ) : (
+              <button
+                onClick={async () => {
+                  setDuplicating(true);
+                  // Use current editor state (not stale prop) for the duplicate
+                  const current: QuestionData = {
+                    ...question,
+                    title,
+                    prompt,
+                    phase,
+                    required,
+                    isScreening,
+                    options,
+                    config,
+                  };
+                  const err = await onDuplicateToPhase(current, "POST_BALLOT");
+                  if (err) {
+                    setSaveResult("error");
+                    setSaveError(err);
+                  }
+                  setDuplicating(false);
+                }}
+                disabled={duplicating}
+                className="text-xs text-blue-700 font-medium hover:underline disabled:opacity-50"
+              >
+                {duplicating ? "Creating..." : "Create post-ballot pair"}
+              </button>
+            )}
+            <p className="text-[10px] text-blue-500 mt-0.5">
+              Measure attitude shift by asking the same question after stimulus
+            </p>
+          </div>
+        )}
 
-        <label className="flex items-center gap-1.5 text-sm">
-          <input
-            type="checkbox"
-            checked={isScreening}
-            onChange={(e) => setIsScreening(e.target.checked)}
-            disabled={isLocked}
-            className="rounded"
-          />
-          Screening question
-        </label>
+        <div className="flex items-center gap-4 pt-1 border-t border-border">
+          <label className="flex items-center gap-1.5 text-xs">
+            <input
+              type="checkbox"
+              checked={required}
+              onChange={(e) => { setRequired(e.target.checked); markDirty(); }}
+              disabled={isLocked}
+              className="rounded"
+            />
+            Required
+          </label>
+
+          {phase === "SCREENING" && (
+            <label className="flex items-center gap-1.5 text-xs">
+              <input
+                type="checkbox"
+                checked={isScreening}
+                onChange={(e) => { setIsScreening(e.target.checked); markDirty(); }}
+                disabled={isLocked}
+                className="rounded"
+              />
+              Terminate unqualified
+            </label>
+          )}
+        </div>
       </div>
 
       {/* Type-specific config */}
@@ -252,33 +337,54 @@ export function QuestionEditor({
           </label>
           <div className="space-y-2">
             {options.map((opt, i) => (
-              <div key={opt.id} className="flex items-center gap-2">
-                <span className="text-xs text-muted-foreground w-4 text-right">
-                  {i + 1}
-                </span>
-                <input
-                  type="text"
-                  value={opt.label}
-                  onChange={(e) => updateOption(i, "label", e.target.value)}
-                  disabled={isLocked}
-                  placeholder="Option label"
-                  className="flex-1 rounded-md border border-input bg-background px-2 py-1 text-sm"
-                />
-                <input
-                  type="text"
-                  value={opt.value}
-                  onChange={(e) => updateOption(i, "value", e.target.value)}
-                  disabled={isLocked}
-                  placeholder="Value"
-                  className="w-28 rounded-md border border-input bg-background px-2 py-1 text-sm"
-                />
-                {!isLocked && (
-                  <button
-                    onClick={() => removeOption(i)}
-                    className="text-muted-foreground hover:text-destructive text-xs"
-                  >
-                    ×
-                  </button>
+              <div key={opt.id} className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground w-4 text-right">
+                    {i + 1}
+                  </span>
+                  <input
+                    type="text"
+                    value={opt.label}
+                    onChange={(e) => updateOption(i, "label", e.target.value)}
+                    disabled={isLocked}
+                    placeholder="Option label"
+                    className="flex-1 rounded-md border border-input bg-background px-2 py-1 text-sm"
+                  />
+                  <input
+                    type="text"
+                    value={opt.value}
+                    onChange={(e) => updateOption(i, "value", e.target.value)}
+                    disabled={isLocked}
+                    placeholder="Value"
+                    className="w-28 rounded-md border border-input bg-background px-2 py-1 text-sm"
+                  />
+                  {!isLocked && (
+                    <button
+                      onClick={() => removeOption(i)}
+                      className="text-muted-foreground hover:text-destructive text-xs"
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
+                {/* Per-option image upload for AB_TEST */}
+                {question.type === "AB_TEST" && (
+                  <OptionImageUpload
+                    imageUrl={opt.imageUrl}
+                    disabled={isLocked}
+                    onUploaded={(key) => {
+                      setOptions((prev) =>
+                        prev.map((o, idx) => idx === i ? { ...o, imageUrl: key } : o)
+                      );
+                      markDirty();
+                    }}
+                    onRemoved={() => {
+                      setOptions((prev) =>
+                        prev.map((o, idx) => idx === i ? { ...o, imageUrl: null } : o)
+                      );
+                      markDirty();
+                    }}
+                  />
                 )}
               </div>
             ))}
@@ -321,9 +427,25 @@ export function QuestionEditor({
 
       {/* Save button */}
       {!isLocked && (
-        <div className="flex justify-end">
-          <Button size="sm" onClick={save} loading={saving}>
-            Save Changes
+        <div className="flex items-center justify-end gap-2">
+          {saveResult === "error" && (
+            <span className="text-xs text-destructive">
+              {saveError || (title.trim() === "" ? "Question text is required" : "Save failed")}
+            </span>
+          )}
+          <Button
+            size="sm"
+            onClick={save}
+            loading={saving}
+            disabled={title.trim() === ""}
+            variant={saveResult === "saved" ? "ghost" : "default"}
+            className={
+              saveResult === "saved"
+                ? "text-green-600 pointer-events-none"
+                : undefined
+            }
+          >
+            {saveResult === "saved" ? "Saved" : "Save Changes"}
           </Button>
         </div>
       )}
@@ -812,6 +934,120 @@ function VideoDialConfig({
       <p className="text-[10px] text-muted-foreground">
         Video/media is configured in the Media section after saving.
       </p>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Per-option image upload (AB Test)
+// ─────────────────────────────────────────────────────────────────────────────
+
+function OptionImageUpload({
+  imageUrl,
+  disabled,
+  onUploaded,
+  onRemoved,
+}: {
+  imageUrl: string | null;
+  disabled: boolean;
+  onUploaded: (key: string) => void;
+  onRemoved: () => void;
+}) {
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState("");
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setError("");
+    setUploading(true);
+
+    // Create local preview immediately
+    const localUrl = URL.createObjectURL(file);
+    setPreviewUrl(localUrl);
+
+    try {
+      const presignRes = await fetch("/api/upload", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contentType: file.type,
+          mediaType: "image",
+          filename: file.name,
+        }),
+      });
+
+      if (!presignRes.ok) throw new Error("server");
+
+      const { uploadUrl, key } = await presignRes.json();
+
+      try {
+        const uploadRes = await fetch(uploadUrl, {
+          method: "PUT",
+          body: file,
+          headers: { "Content-Type": file.type },
+        });
+        if (!uploadRes.ok) throw new Error("storage");
+      } catch {
+        throw new Error("storage");
+      }
+
+      onUploaded(key);
+    } catch {
+      setError("Upload failed — please try again.");
+      URL.revokeObjectURL(localUrl);
+      setPreviewUrl(null);
+    } finally {
+      setUploading(false);
+      e.target.value = "";
+    }
+  };
+
+  return (
+    <div className="ml-6 flex items-center gap-2">
+      {imageUrl ? (
+        <>
+          {previewUrl && (
+            <img src={previewUrl} alt="" className="w-10 h-10 object-cover rounded border border-border" />
+          )}
+          <span className="text-[10px] text-green-600">Image attached</span>
+          {!disabled && (
+            <button
+              onClick={() => {
+                if (previewUrl) URL.revokeObjectURL(previewUrl);
+                setPreviewUrl(null);
+                onRemoved();
+              }}
+              className="text-[10px] text-muted-foreground hover:text-destructive"
+            >
+              Remove
+            </button>
+          )}
+        </>
+      ) : (
+        <>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            onChange={handleFile}
+            disabled={disabled || uploading}
+            className="hidden"
+          />
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={disabled || uploading}
+            className="text-[10px] text-primary hover:text-primary/80 hover:underline disabled:opacity-50 disabled:no-underline"
+          >
+            {uploading ? "Uploading..." : "Add image"}
+          </button>
+        </>
+      )}
+      {error && <span className="text-[10px] text-destructive">{error}</span>}
     </div>
   );
 }

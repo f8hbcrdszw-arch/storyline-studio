@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { StatusDot } from "@/components/ui/status-dot";
 import { StudyActions } from "./components/StudyActions";
 import { OverflowMenu } from "./components/OverflowMenu";
-import { ArrowLeft, Pencil, BarChart3 } from "lucide-react";
+import { EditableTitle } from "./components/EditableTitle";
+import { ArrowLeft, Pencil, BarChart3, Eye } from "lucide-react";
 
 const TYPE_LABELS: Record<string, string> = {
   VIDEO_DIAL: "Video Dial",
@@ -62,8 +63,20 @@ export default async function StudyDetailPage({
       {/* Header + metadata */}
       <div className="animate-in fade-in slide-in-from-bottom-1 duration-300 delay-75">
         <div className="flex items-start justify-between mb-1">
-          <h1>{study.title}</h1>
+          <EditableTitle studyId={study.id} title={study.title} />
           <div className="flex items-center gap-2 shrink-0 ml-4">
+            {study.questions.length > 0 && (
+              <a
+                href={`/survey/${id}?preview=true`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <Button variant="outline" size="sm">
+                  <Eye className="w-3.5 h-3.5 mr-1.5" />
+                  Preview
+                </Button>
+              </a>
+            )}
             <Link href={`/admin/studies/${id}/edit`}>
               <Button variant="outline" size="sm">
                 <Pencil className="w-3.5 h-3.5 mr-1.5" />

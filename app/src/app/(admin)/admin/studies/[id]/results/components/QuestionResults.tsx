@@ -2,17 +2,8 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { DialPlayback } from "./DialPlayback";
-
-interface QuestionInfo {
-  id: string;
-  title: string;
-  type: string;
-  phase: string;
-  order: number;
-  isScreening: boolean;
-  options: { id: string; label: string; value: string }[];
-  mediaItems: { id: string; source: string; youtubeId: string | null; url: string | null }[];
-}
+import { SegmentLegend } from "./SegmentLegend";
+import type { QuestionInfo } from "@/lib/types/question";
 
 interface ListResult {
   value: string;
@@ -62,6 +53,18 @@ interface DialSummary {
   durationSecs: number;
 }
 
+interface SegmentLine {
+  label: string;
+  color: string;
+  data: DialAggregation[];
+  n: number;
+}
+
+interface SegmentDialData {
+  segments: SegmentLine[];
+  lightbulbs: Record<number, number>;
+}
+
 type QuestionResultData =
   | { type: "list"; data: ListResult[] }
   | { type: "likert"; data: LikertResult }
@@ -77,10 +80,12 @@ export function QuestionResults({
   studyId,
   question,
   segmentFilter,
+  segmentCompare,
 }: {
   studyId: string;
   question: QuestionInfo;
   segmentFilter?: { questionId: string; value: string };
+  segmentCompare?: { questionId: string };
 }) {
   const [result, setResult] = useState<QuestionResultData | null>(null);
   const [dialData, setDialData] = useState<{
@@ -88,6 +93,7 @@ export function QuestionResults({
     lightbulbs: Record<number, number>;
     annotations?: { text: string; answeredAt: string }[];
   } | null>(null);
+  const [segmentDialData, setSegmentDialData] = useState<SegmentDialData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -95,6 +101,7 @@ export function QuestionResults({
     async function fetchResults() {
       setLoading(true);
       setError(null);
+      setSegmentDialData(null);
 
       try {
         const params = new URLSearchParams();
@@ -111,13 +118,37 @@ export function QuestionResults({
         const data = await res.json();
         setResult(data);
 
-        // For VIDEO_DIAL, also fetch dial data
+        // For VIDEO_DIAL, fetch dial data
         if (question.type === "VIDEO_DIAL") {
-          const dialRes = await fetch(
-            `/api/studies/${studyId}/results/dial/${question.id}${qs}`
-          );
-          if (dialRes.ok) {
-            setDialData(await dialRes.json());
+          if (segmentCompare) {
+            // Compare mode: fetch multi-segment data
+            const compareParams = new URLSearchParams({
+              compare: "true",
+              segmentQuestionId: segmentCompare.questionId,
+            });
+            const dialRes = await fetch(
+              `/api/studies/${studyId}/results/dial/${question.id}?${compareParams.toString()}`
+            );
+            if (dialRes.ok) {
+              const segData = await dialRes.json();
+              setSegmentDialData(segData);
+              // Also set single-line dialData from the "All" segment for fallback
+              const allSeg = segData.segments?.find((s: SegmentLine) => s.label === "All");
+              if (allSeg) {
+                setDialData({
+                  dialData: allSeg.data,
+                  lightbulbs: segData.lightbulbs,
+                });
+              }
+            }
+          } else {
+            // Filter mode: existing single-segment fetch
+            const dialRes = await fetch(
+              `/api/studies/${studyId}/results/dial/${question.id}${qs}`
+            );
+            if (dialRes.ok) {
+              setDialData(await dialRes.json());
+            }
           }
         }
       } catch (err) {
@@ -127,7 +158,7 @@ export function QuestionResults({
       }
     }
     fetchResults();
-  }, [studyId, question.id, question.type, segmentFilter]);
+  }, [studyId, question.id, question.type, segmentFilter, segmentCompare]);
 
   if (loading) {
     return (
@@ -193,9 +224,14 @@ export function QuestionResults({
               mediaItem={question.mediaItems[0]}
               dialData={dialData.dialData}
               lightbulbs={dialData.lightbulbs}
+              segments={segmentDialData?.segments}
             />
           )}
-          <DialResultView data={dialData} questionId={question.id} />
+          <DialResultView
+            data={dialData}
+            questionId={question.id}
+            segments={segmentDialData?.segments}
+          />
         </>
       )}
     </div>
@@ -499,6 +535,7 @@ function GridResultView({ data }: { data: GridResult }) {
 function DialResultView({
   data,
   questionId,
+  segments,
 }: {
   data: {
     dialData: DialAggregation[];
@@ -506,8 +543,11 @@ function DialResultView({
     annotations?: { text: string; answeredAt: string }[];
   };
   questionId: string;
+  segments?: SegmentLine[];
 }) {
+  const isCompareMode = segments && segments.length > 1;
   const svgRef = useRef<SVGSVGElement>(null);
+  const [hoverSecond, setHoverSecond] = useState<number | null>(null);
 
   const handleDownloadChart = useCallback(async () => {
     const svg = svgRef.current;
@@ -589,6 +629,59 @@ function DialResultView({
     };
     img.src = dataUrl;
   }, [questionId]);
+
+  // ── Hover handler for interactive cursor ───────────────────
+  const handleSvgMouse = useCallback(
+    (e: React.MouseEvent<SVGSVGElement>) => {
+      const svg = svgRef.current;
+      if (!svg || data.dialData.length === 0) return;
+
+      const rect = svg.getBoundingClientRect();
+      const svgWidth = 700;
+      const svgX = ((e.clientX - rect.left) / rect.width) * svgWidth;
+
+      // Convert SVG x back to seconds using inverse of xScale
+      const pad = { left: 35, right: 10 };
+      const cW = svgWidth - pad.left - pad.right;
+      const ms = data.dialData[data.dialData.length - 1]?.second || 0;
+      const sec = ((svgX - pad.left) / cW) * Math.max(ms, 1);
+
+      if (sec < 0 || sec > ms) {
+        setHoverSecond(null);
+        return;
+      }
+
+      // Snap to nearest data point
+      let closest = data.dialData[0];
+      let minDist = Math.abs(closest.second - sec);
+      for (const d of data.dialData) {
+        const dist = Math.abs(d.second - sec);
+        if (dist < minDist) {
+          closest = d;
+          minDist = dist;
+        }
+      }
+      setHoverSecond(closest.second);
+    },
+    [data.dialData]
+  );
+
+  const handleSvgLeave = useCallback(() => {
+    setHoverSecond(null);
+  }, []);
+
+  // Find the hovered data point (single mode)
+  const hoveredPoint = hoverSecond !== null
+    ? data.dialData.find((d) => d.second === hoverSecond) || null
+    : null;
+
+  // Find hovered points for each segment (compare mode)
+  const hoveredSegments = isCompareMode && hoverSecond !== null
+    ? segments.map((seg) => ({
+        ...seg,
+        point: seg.data.find((d) => d.second === hoverSecond) || null,
+      }))
+    : null;
 
   if (data.dialData.length === 0) {
     return (
@@ -686,23 +779,27 @@ function DialResultView({
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4 text-xs text-muted-foreground flex-wrap">
-          <span>n = {respondentCount}</span>
-          <span className="flex items-center gap-1">
-            <span className="inline-block w-6 h-1.5 rounded" style={{ background: "linear-gradient(to right, #ef4444, #eab308, #22c55e)" }} /> Mean
-          </span>
-          <span className="flex items-center gap-1">
-            <span className="inline-block w-3 h-0.5 rounded" style={{ backgroundColor: "#9ca3af" }} /> Median
-          </span>
-          {lightbulbEntries.length > 0 && (
+        {isCompareMode ? (
+          <SegmentLegend segments={segments} />
+        ) : (
+          <div className="flex items-center gap-4 text-xs text-muted-foreground flex-wrap">
+            <span>n = {respondentCount}</span>
             <span className="flex items-center gap-1">
-              <span className="inline-block w-2.5 h-2.5 rounded-full bg-yellow-400" /> Moments
+              <span className="inline-block w-6 h-1.5 rounded" style={{ background: "linear-gradient(to right, #ef4444, #eab308, #22c55e)" }} /> Mean
             </span>
-          )}
-        </div>
+            <span className="flex items-center gap-1">
+              <span className="inline-block w-3 h-0.5 rounded" style={{ backgroundColor: "#9ca3af" }} /> Median
+            </span>
+            {lightbulbEntries.length > 0 && (
+              <span className="flex items-center gap-1">
+                <span className="inline-block w-2.5 h-2.5 rounded-full bg-yellow-400" /> Moments
+              </span>
+            )}
+          </div>
+        )}
         <button
           onClick={handleDownloadChart}
-          className="text-xs px-2.5 py-1.5 rounded-md border border-border bg-background text-foreground hover:bg-muted transition-colors"
+          className="text-xs px-2.5 py-1.5 rounded-md border border-border bg-background text-foreground hover:bg-muted transition-colors shrink-0"
         >
           Download Chart
         </button>
@@ -712,9 +809,11 @@ function DialResultView({
         <svg
           ref={svgRef}
           viewBox={`0 0 ${width} ${height}`}
-          className="w-full"
+          className="w-full cursor-crosshair"
           style={{ minWidth: "400px" }}
           xmlns="http://www.w3.org/2000/svg"
+          onMouseMove={handleSvgMouse}
+          onMouseLeave={handleSvgLeave}
         >
           <defs>
             <linearGradient id={gradientId} x1="0" y1="1" x2="0" y2="0">
@@ -761,34 +860,60 @@ function DialResultView({
             strokeDasharray="4 2"
           />
 
-          {/* Fill area under mean line */}
-          {fillPath && (
-            <path d={fillPath} fill={`url(#${gradientId})`} />
+          {isCompareMode ? (
+            <>
+              {/* Compare mode: multiple segment lines */}
+              {segments.map((seg) => {
+                if (seg.data.length < 2) return null;
+                const path = seg.data
+                  .map((d, i) => `${i === 0 ? "M" : "L"}${xScale(d.second)},${yScale(d.mean)}`)
+                  .join(" ");
+                const isAll = seg.label === "All";
+                return (
+                  <path
+                    key={seg.label}
+                    d={path}
+                    fill="none"
+                    stroke={seg.color}
+                    strokeWidth={isAll ? 1.5 : 2.5}
+                    strokeOpacity={isAll ? 0.35 : 1}
+                    strokeDasharray={isAll ? "6 3" : undefined}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                );
+              })}
+            </>
+          ) : (
+            <>
+              {/* Single mode: fill + median + color-coded mean */}
+              {fillPath && (
+                <path d={fillPath} fill={`url(#${gradientId})`} />
+              )}
+
+              <path
+                d={medianPath}
+                fill="none"
+                stroke="#9ca3af"
+                strokeOpacity={0.5}
+                strokeWidth={1}
+                strokeDasharray="3 2"
+              />
+
+              {meanSegments.map((seg, i) => (
+                <line
+                  key={i}
+                  x1={seg.x1}
+                  y1={seg.y1}
+                  x2={seg.x2}
+                  y2={seg.y2}
+                  stroke={seg.color}
+                  strokeWidth={2.5}
+                  strokeLinecap="round"
+                />
+              ))}
+            </>
           )}
-
-          {/* Median line — subtle gray */}
-          <path
-            d={medianPath}
-            fill="none"
-            stroke="#9ca3af"
-            strokeOpacity={0.5}
-            strokeWidth={1}
-            strokeDasharray="3 2"
-          />
-
-          {/* Mean line — color-coded segments */}
-          {meanSegments.map((seg, i) => (
-            <line
-              key={i}
-              x1={seg.x1}
-              y1={seg.y1}
-              x2={seg.x2}
-              y2={seg.y2}
-              stroke={seg.color}
-              strokeWidth={2.5}
-              strokeLinecap="round"
-            />
-          ))}
 
           {/* ── Lightbulb / Moments row ─────────────────────── */}
           {lightbulbEntries.length > 0 && (
@@ -869,6 +994,246 @@ function DialResultView({
               {formatTime(t)}
             </text>
           ))}
+
+          {/* ── Interactive hover cursor ──────────────────────── */}
+          {isCompareMode && hoveredSegments && hoverSecond !== null && (() => {
+            const cx = xScale(hoverSecond);
+            const validSegments = hoveredSegments.filter((s) => s.point);
+
+            // Tooltip sizing — one row per segment + header
+            const tooltipW = 140;
+            const lineH = 14;
+            const tooltipH = 20 + validSegments.length * lineH + 4;
+            const tooltipX = cx + tooltipW + 15 > width
+              ? cx - tooltipW - 10
+              : cx + 10;
+            const tooltipY = Math.max(
+              padding.top,
+              Math.min(chartH / 2 - tooltipH / 2, padding.top + chartH - tooltipH)
+            );
+
+            return (
+              <g style={{ pointerEvents: "none" }}>
+                {/* Vertical cursor line */}
+                <line
+                  x1={cx}
+                  y1={padding.top}
+                  x2={cx}
+                  y2={padding.top + chartH}
+                  stroke="currentColor"
+                  strokeOpacity={0.3}
+                  strokeWidth={1}
+                  strokeDasharray="3 2"
+                />
+
+                {/* Dots on each segment line */}
+                {validSegments.map((seg) => (
+                  <circle
+                    key={seg.label}
+                    cx={cx}
+                    cy={yScale(seg.point!.mean)}
+                    r={seg.label === "All" ? 3 : 4}
+                    fill={seg.color}
+                    stroke="white"
+                    strokeWidth={1.5}
+                    opacity={seg.label === "All" ? 0.5 : 1}
+                  />
+                ))}
+
+                {/* Tooltip background */}
+                <rect
+                  x={tooltipX}
+                  y={tooltipY}
+                  width={tooltipW}
+                  height={tooltipH}
+                  rx={6}
+                  fill="var(--popover, #1a1a2e)"
+                  fillOpacity={0.95}
+                  stroke="currentColor"
+                  strokeOpacity={0.15}
+                  strokeWidth={1}
+                />
+
+                {/* Time label */}
+                <text
+                  x={tooltipX + 8}
+                  y={tooltipY + 14}
+                  fontSize={10}
+                  fontWeight={600}
+                  fill="var(--popover-foreground, #e5e5e5)"
+                >
+                  {formatTime(hoverSecond)}
+                </text>
+
+                {/* Segment values */}
+                {validSegments.map((seg, i) => (
+                  <g key={seg.label}>
+                    <circle
+                      cx={tooltipX + 12}
+                      cy={tooltipY + 26 + i * lineH}
+                      r={3}
+                      fill={seg.color}
+                      opacity={seg.label === "All" ? 0.5 : 1}
+                    />
+                    <text
+                      x={tooltipX + 20}
+                      y={tooltipY + 29 + i * lineH}
+                      fontSize={9}
+                      fill="var(--popover-foreground, #e5e5e5)"
+                    >
+                      {seg.label}: {seg.point!.mean.toFixed(1)}
+                    </text>
+                    <text
+                      x={tooltipX + tooltipW - 8}
+                      y={tooltipY + 29 + i * lineH}
+                      fontSize={8}
+                      fill="var(--muted-foreground, #9ca3af)"
+                      textAnchor="end"
+                    >
+                      n={seg.point!.n}
+                    </text>
+                  </g>
+                ))}
+              </g>
+            );
+          })()}
+
+          {!isCompareMode && hoveredPoint && (() => {
+            const cx = xScale(hoveredPoint.second);
+            const meanY = yScale(hoveredPoint.mean);
+            const medianY = yScale(hoveredPoint.median);
+
+            // Compute min/max at this second across nearby points for range display
+            const nearby = data.dialData.filter(
+              (d) => Math.abs(d.second - hoveredPoint.second) <= 1
+            );
+            const meanHigh = Math.max(...nearby.map((d) => d.mean));
+            const meanLow = Math.min(...nearby.map((d) => d.mean));
+
+            // Tooltip positioning — flip if near right edge
+            const tooltipW = 120;
+            const tooltipH = 82;
+            const tooltipX = cx + tooltipW + 15 > width
+              ? cx - tooltipW - 10
+              : cx + 10;
+            const tooltipY = Math.max(
+              padding.top,
+              Math.min(meanY - tooltipH / 2, padding.top + chartH - tooltipH)
+            );
+
+            return (
+              <g style={{ pointerEvents: "none" }}>
+                {/* Vertical cursor line */}
+                <line
+                  x1={cx}
+                  y1={padding.top}
+                  x2={cx}
+                  y2={padding.top + chartH}
+                  stroke="currentColor"
+                  strokeOpacity={0.3}
+                  strokeWidth={1}
+                  strokeDasharray="3 2"
+                />
+
+                {/* Mean dot */}
+                <circle
+                  cx={cx}
+                  cy={meanY}
+                  r={4}
+                  fill={dialColor(hoveredPoint.mean)}
+                  stroke="white"
+                  strokeWidth={1.5}
+                />
+
+                {/* Median dot */}
+                <circle
+                  cx={cx}
+                  cy={medianY}
+                  r={3}
+                  fill="#9ca3af"
+                  stroke="white"
+                  strokeWidth={1}
+                />
+
+                {/* Tooltip background */}
+                <rect
+                  x={tooltipX}
+                  y={tooltipY}
+                  width={tooltipW}
+                  height={tooltipH}
+                  rx={6}
+                  fill="var(--popover, #1a1a2e)"
+                  fillOpacity={0.95}
+                  stroke="currentColor"
+                  strokeOpacity={0.15}
+                  strokeWidth={1}
+                />
+
+                {/* Time label */}
+                <text
+                  x={tooltipX + 8}
+                  y={tooltipY + 14}
+                  fontSize={10}
+                  fontWeight={600}
+                  fill="var(--popover-foreground, #e5e5e5)"
+                >
+                  {formatTime(hoveredPoint.second)}
+                </text>
+
+                {/* Mean value */}
+                <circle
+                  cx={tooltipX + 12}
+                  cy={tooltipY + 28}
+                  r={3}
+                  fill={dialColor(hoveredPoint.mean)}
+                />
+                <text
+                  x={tooltipX + 20}
+                  y={tooltipY + 31}
+                  fontSize={9}
+                  fill="var(--popover-foreground, #e5e5e5)"
+                >
+                  Mean: {hoveredPoint.mean.toFixed(1)}
+                </text>
+
+                {/* Median value */}
+                <circle
+                  cx={tooltipX + 12}
+                  cy={tooltipY + 42}
+                  r={3}
+                  fill="#9ca3af"
+                />
+                <text
+                  x={tooltipX + 20}
+                  y={tooltipY + 45}
+                  fontSize={9}
+                  fill="var(--popover-foreground, #e5e5e5)"
+                >
+                  Median: {hoveredPoint.median.toFixed(1)}
+                </text>
+
+                {/* Range */}
+                <text
+                  x={tooltipX + 8}
+                  y={tooltipY + 59}
+                  fontSize={9}
+                  fill="var(--muted-foreground, #9ca3af)"
+                >
+                  Range: {meanLow.toFixed(1)} – {meanHigh.toFixed(1)}
+                </text>
+
+                {/* Respondents */}
+                <text
+                  x={tooltipX + 8}
+                  y={tooltipY + 73}
+                  fontSize={9}
+                  fill="var(--muted-foreground, #9ca3af)"
+                >
+                  n = {hoveredPoint.n}
+                </text>
+              </g>
+            );
+          })()}
         </svg>
       </div>
 

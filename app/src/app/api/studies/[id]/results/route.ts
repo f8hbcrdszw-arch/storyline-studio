@@ -26,6 +26,9 @@ export const GET = withErrorHandler(
     }
 
     const stats = await getStudyOverviewStats(id);
-    return NextResponse.json(stats);
+    const res = NextResponse.json(stats);
+    // Admin-only — refresh every minute
+    res.headers.set("Cache-Control", "private, s-maxage=60");
+    return res;
   }
 );

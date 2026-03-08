@@ -2,7 +2,9 @@ import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { ToastProvider } from "@/components/ui/toast";
+import { Wordmark } from "@/components/ui/wordmark";
 import { LayoutGrid } from "lucide-react";
+import { MobileNav } from "./components/MobileNav";
 
 export default async function AdminLayout({
   children,
@@ -24,15 +26,13 @@ export default async function AdminLayout({
 
   return (
     <div className="flex flex-col min-h-screen">
-      <header className="sticky top-0 z-40 flex items-center justify-between h-14 px-6 border-b border-border bg-background/95 backdrop-blur-sm supports-[backdrop-filter]:bg-background/80">
-        <div className="flex items-center gap-6">
-          <Link href="/admin/studies" className="flex items-center gap-2">
-            <h2 className="font-display text-lg font-light tracking-tight text-foreground">
-              Storyline Studio
-            </h2>
+      <header className="sticky top-0 z-40 relative flex items-center justify-between h-14 px-4 sm:px-6 border-b border-border bg-background/95 backdrop-blur-sm supports-[backdrop-filter]:bg-background/80">
+        <div className="flex items-center gap-3 sm:gap-6">
+          <Link href="/admin/studies" className="flex items-center">
+            <Wordmark size="md" className="text-foreground" />
           </Link>
-          <div className="h-5 w-px bg-border" />
-          <nav className="flex items-center gap-1">
+          <div className="hidden sm:block h-5 w-px bg-border" />
+          <nav className="hidden sm:flex items-center gap-1">
             <Link
               href="/admin/studies"
               className="flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium text-primary bg-primary/[0.08]"
@@ -49,6 +49,7 @@ export default async function AdminLayout({
           <div className="w-7 h-7 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[10px] font-medium">
             {initials}
           </div>
+          <MobileNav />
         </div>
       </header>
       <div className="h-[2px] bg-gradient-to-r from-storyline-blue via-storyline-blue/60 to-transparent" />

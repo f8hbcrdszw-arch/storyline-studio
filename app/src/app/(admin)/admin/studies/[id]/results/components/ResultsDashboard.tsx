@@ -3,17 +3,7 @@
 import { useState } from "react";
 import { Select } from "@/components/ui/select";
 import { QuestionResults } from "./QuestionResults";
-
-interface QuestionInfo {
-  id: string;
-  title: string;
-  type: string;
-  phase: string;
-  order: number;
-  isScreening: boolean;
-  options: { id: string; label: string; value: string }[];
-  mediaItems: { id: string; source: string; youtubeId: string | null; url: string | null }[];
-}
+import type { QuestionInfo } from "@/lib/types/question";
 
 export function ResultsDashboard({
   studyId,
@@ -27,6 +17,7 @@ export function ResultsDashboard({
   );
   const [segmentQuestionId, setSegmentQuestionId] = useState<string>("");
   const [segmentValue, setSegmentValue] = useState<string>("");
+  const [compareMode, setCompareMode] = useState(false);
 
   const screeningQuestions = questions.filter((q) => q.isScreening);
   const selectedQuestion = questions.find((q) => q.id === selectedQuestionId);
@@ -48,6 +39,7 @@ export function ResultsDashboard({
             onChange={(e) => {
               setSegmentQuestionId(e.target.value);
               setSegmentValue("");
+              setCompareMode(false);
             }}
             className="w-auto"
           >
@@ -60,18 +52,47 @@ export function ResultsDashboard({
           </Select>
 
           {segmentQuestion && segmentQuestion.options.length > 0 && (
-            <Select
-              value={segmentValue}
-              onChange={(e) => setSegmentValue(e.target.value)}
-              className="w-auto"
-            >
-              <option value="">Select value...</option>
-              {segmentQuestion.options.map((opt) => (
-                <option key={opt.id} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </Select>
+            <>
+              {/* Filter / Compare toggle */}
+              <div className="inline-flex rounded-md border border-border text-xs">
+                <button
+                  onClick={() => setCompareMode(false)}
+                  className={`px-2.5 py-1.5 rounded-l-md transition-colors ${
+                    !compareMode
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
+                  }`}
+                >
+                  Filter
+                </button>
+                <button
+                  onClick={() => { setCompareMode(true); setSegmentValue(""); }}
+                  className={`px-2.5 py-1.5 rounded-r-md transition-colors ${
+                    compareMode
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
+                  }`}
+                >
+                  Compare
+                </button>
+              </div>
+
+              {/* Value dropdown — only in filter mode */}
+              {!compareMode && (
+                <Select
+                  value={segmentValue}
+                  onChange={(e) => setSegmentValue(e.target.value)}
+                  className="w-auto"
+                >
+                  <option value="">Select value...</option>
+                  {segmentQuestion.options.map((opt) => (
+                    <option key={opt.id} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </Select>
+              )}
+            </>
           )}
         </div>
       )}
@@ -108,12 +129,17 @@ export function ResultsDashboard({
         <div>
           {selectedQuestion ? (
             <QuestionResults
-              key={`${selectedQuestion.id}-${segmentQuestionId}-${segmentValue}`}
+              key={`${selectedQuestion.id}-${segmentQuestionId}-${segmentValue}-${compareMode}`}
               studyId={studyId}
               question={selectedQuestion}
               segmentFilter={
-                segmentQuestionId && segmentValue
+                !compareMode && segmentQuestionId && segmentValue
                   ? { questionId: segmentQuestionId, value: segmentValue }
+                  : undefined
+              }
+              segmentCompare={
+                compareMode && segmentQuestionId
+                  ? { questionId: segmentQuestionId }
                   : undefined
               }
             />

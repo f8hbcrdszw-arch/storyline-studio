@@ -4,10 +4,14 @@ import { SurveyShell } from "./components/SurveyShell";
 
 export default async function SurveyPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ preview?: string }>;
 }) {
   const { id: slugOrId } = await params;
+  const { preview } = await searchParams;
+  const isPreview = preview === "true";
 
   // UUID regex to determine if this is an ID or slug
   const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(slugOrId);
@@ -28,7 +32,7 @@ export default async function SurveyPage({
 
   if (!study) notFound();
 
-  if (study.status !== "ACTIVE") {
+  if (!isPreview && study.status !== "ACTIVE") {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-background px-4">
         <h1 className="text-xl font-medium text-foreground mb-2">
@@ -49,8 +53,9 @@ export default async function SurveyPage({
     <SurveyShell
       studyId={study.id}
       studyTitle={study.title}
-      slug={study.slug!}
+      slug={study.slug || study.id}
       settings={study.settings as Record<string, unknown>}
+      preview={isPreview}
     />
   );
 }

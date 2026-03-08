@@ -39,6 +39,11 @@ export const items = localFont({
       weight: "400",
       style: "normal",
     },
+    {
+      path: "../../public/fonts/Items-Medium.woff2",
+      weight: "500",
+      style: "normal",
+    },
   ],
   variable: "--font-items",
   display: "optional",

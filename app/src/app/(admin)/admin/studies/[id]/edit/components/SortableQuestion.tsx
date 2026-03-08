@@ -7,6 +7,7 @@ import type { QuestionData } from "./StudyEditor";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { QuestionEditor } from "./QuestionEditor";
+import { QuestionPreviewModal } from "./QuestionPreviewModal";
 
 const TYPE_LABELS: Record<string, string> = {
   VIDEO_DIAL: "Video Dial",
@@ -37,6 +38,7 @@ export function SortableQuestion({
   onSelect,
   onDelete,
   onUpdate,
+  onDuplicateToPhase,
 }: {
   question: QuestionData;
   allQuestions: QuestionData[];
@@ -45,8 +47,10 @@ export function SortableQuestion({
   onSelect: () => void;
   onDelete: () => void;
   onUpdate: (updates: Partial<QuestionData>) => void;
+  onDuplicateToPhase?: (question: QuestionData, targetPhase: string) => Promise<string | null>;
 }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
   const {
     attributes,
     listeners,
@@ -131,15 +135,16 @@ export function SortableQuestion({
         </button>
 
         {/* Actions */}
-        {!isLocked && (
+        <div className="flex items-center gap-1">
           <Button
             variant="ghost"
             size="icon-xs"
             onClick={(e) => {
               e.stopPropagation();
-              setConfirmDelete(true);
+              setShowPreview(true);
             }}
-            className="text-muted-foreground hover:text-destructive"
+            className="text-muted-foreground hover:text-foreground"
+            title="Preview question"
           >
             <svg
               width="14"
@@ -148,11 +153,36 @@ export function SortableQuestion({
               fill="none"
               stroke="currentColor"
               strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
             >
-              <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14" />
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+              <circle cx="12" cy="12" r="3" />
             </svg>
           </Button>
-        )}
+          {!isLocked && (
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              onClick={(e) => {
+                e.stopPropagation();
+                setConfirmDelete(true);
+              }}
+              className="text-muted-foreground hover:text-destructive"
+            >
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14" />
+              </svg>
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Inline editor */}
@@ -162,6 +192,7 @@ export function SortableQuestion({
           allQuestions={allQuestions}
           isLocked={isLocked}
           onUpdate={onUpdate}
+          onDuplicateToPhase={onDuplicateToPhase}
         />
       )}
 
@@ -175,6 +206,12 @@ export function SortableQuestion({
           onDelete();
         }}
         onCancel={() => setConfirmDelete(false)}
+      />
+
+      <QuestionPreviewModal
+        open={showPreview}
+        question={question}
+        onClose={() => setShowPreview(false)}
       />
     </div>
   );

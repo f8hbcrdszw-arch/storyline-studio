@@ -1,46 +1,19 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
+import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
 import { QuestionRenderer } from "./QuestionRenderer";
+import type { QuestionData } from "@/lib/types/question";
 
-interface QuestionOption {
-  id: string;
-  label: string;
-  value: string;
-  order: number;
-  imageUrl: string | null;
-}
-
-interface MediaItem {
-  id: string;
-  source: string;
-  youtubeId: string | null;
-  type: string;
-  durationSecs: number | null;
-  thumbnailUrl: string | null;
-}
-
-export interface SurveyQuestion {
-  id: string;
-  type: string;
-  phase: string;
-  order: number;
-  title: string;
-  prompt: string | null;
-  config: Record<string, unknown>;
-  required: boolean;
-  isScreening: boolean;
-  skipLogic: unknown;
-  options: QuestionOption[];
-  mediaItems: MediaItem[];
-}
+/** @deprecated Use QuestionData from @/lib/types/question instead */
+export type SurveyQuestion = QuestionData;
 
 interface StudyData {
   id: string;
   title: string;
   settings: Record<string, unknown>;
-  questions: SurveyQuestion[];
+  questions: QuestionData[];
 }
 
 type Screen = "consent" | "survey" | "completed" | "screened_out" | "error";
@@ -50,11 +23,13 @@ export function SurveyShell({
   studyTitle,
   slug,
   settings,
+  preview = false,
 }: {
   studyId: string;
   studyTitle: string;
   slug: string;
   settings: Record<string, unknown>;
+  preview?: boolean;
 }) {
   const [screen, setScreen] = useState<Screen>("consent");
   const [study, setStudy] = useState<StudyData | null>(null);
@@ -63,6 +38,9 @@ export function SurveyShell({
   const [answers, setAnswers] = useState<Record<string, unknown>>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const turnstileRef = useRef<TurnstileInstance>(null);
+  const turnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
 
   const allowBack = (settings.allowBackNavigation as boolean) ?? false;
   const showProgress = (settings.showProgress as boolean) ?? true;
@@ -70,7 +48,8 @@ export function SurveyShell({
   // Load study data
   const loadStudy = useCallback(async () => {
     try {
-      const res = await fetch(`/api/surveys/${slug}`);
+      const url = `/api/surveys/${slug}${preview ? "?preview=true" : ""}`;
+      const res = await fetch(url);
       if (!res.ok) {
         setScreen("error");
         return;
@@ -80,7 +59,7 @@ export function SurveyShell({
     } catch {
       setScreen("error");
     }
-  }, [slug]);
+  }, [slug, preview]);
 
   // Create or resume response
   const startSurvey = useCallback(async () => {
@@ -88,11 +67,22 @@ export function SurveyShell({
     setLoading(true);
     setError("");
 
+    if (preview) {
+      // Preview mode — no API call, no response created
+      setResponseId("preview");
+      setScreen("survey");
+      setLoading(false);
+      return;
+    }
+
     try {
       const res = await fetch("/api/responses", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ studyId }),
+        body: JSON.stringify({
+          studyId,
+          ...(turnstileToken ? { turnstileToken } : {}),
+        }),
       });
 
       if (!res.ok) {
@@ -130,7 +120,7 @@ export function SurveyShell({
     } finally {
       setLoading(false);
     }
-  }, [study, studyId]);
+  }, [study, studyId, preview]);
 
   // Load study data on mount
   useEffect(() => {
@@ -146,6 +136,23 @@ export function SurveyShell({
 
       setLoading(true);
       setError("");
+
+      if (preview) {
+        // Preview mode — store locally, advance linearly, no API call
+        setAnswers((prev) => ({
+          ...prev,
+          [currentQuestion.id]: value,
+        }));
+
+        const nextIndex = currentIndex + 1;
+        if (nextIndex >= totalQuestions) {
+          setScreen("completed");
+        } else {
+          setCurrentIndex(nextIndex);
+        }
+        setLoading(false);
+        return;
+      }
 
       try {
         const res = await fetch("/api/answers", {
@@ -206,7 +213,7 @@ export function SurveyShell({
         setLoading(false);
       }
     },
-    [currentQuestion, responseId, currentIndex, totalQuestions, study]
+    [currentQuestion, responseId, currentIndex, totalQuestions, study, preview]
   );
 
   const completeSurvey = useCallback(async () => {
@@ -271,6 +278,13 @@ export function SurveyShell({
     return (
       <SurveyLayout>
         <div className="max-w-lg w-full mx-auto space-y-6">
+          {preview && (
+            <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-2 text-center">
+              <p className="text-sm font-medium text-amber-800">Preview Mode</p>
+              <p className="text-xs text-amber-600">Responses are not recorded</p>
+            </div>
+          )}
+
           <div className="text-center">
             <h1>{studyTitle}</h1>
             <p className="text-sm text-muted-foreground mt-2">
@@ -279,24 +293,35 @@ export function SurveyShell({
             </p>
           </div>
 
-          <div className="rounded-lg border border-border p-4 text-xs text-muted-foreground space-y-2">
-            <p className="font-medium text-foreground text-sm">
-              Before you begin
-            </p>
-            <p>
-              By continuing, you consent to participate in this research study.
-              Your responses are anonymous and no personally identifiable
-              information is collected.
-            </p>
-            <p>
-              This survey may include video content from YouTube. By proceeding,
-              you acknowledge that YouTube&apos;s privacy policy applies when
-              viewing embedded videos.
-            </p>
-            <p>
-              A cookie will be stored on your device to save your progress.
-            </p>
-          </div>
+          {!preview && (
+            <div className="rounded-lg border border-border p-4 text-xs text-muted-foreground space-y-2">
+              <p className="font-medium text-foreground text-sm">
+                Before you begin
+              </p>
+              <p>
+                By continuing, you consent to participate in this research study.
+                Your responses are anonymous and no personally identifiable
+                information is collected.
+              </p>
+              <p>
+                This survey may include video content from YouTube. By proceeding,
+                you acknowledge that YouTube&apos;s privacy policy applies when
+                viewing embedded videos.
+              </p>
+              <p>
+                A cookie will be stored on your device to save your progress.
+              </p>
+            </div>
+          )}
+
+          {!preview && turnstileSiteKey && (
+            <Turnstile
+              ref={turnstileRef}
+              siteKey={turnstileSiteKey}
+              options={{ size: "invisible" }}
+              onSuccess={setTurnstileToken}
+            />
+          )}
 
           {error && <p className="text-sm text-destructive text-center">{error}</p>}
 
@@ -304,9 +329,9 @@ export function SurveyShell({
             className="w-full"
             size="lg"
             onClick={startSurvey}
-            disabled={loading || !study}
+            disabled={loading || !study || (!preview && !!turnstileSiteKey && !turnstileToken)}
           >
-            {loading ? "Starting..." : study ? "Begin Survey" : "Loading..."}
+            {loading ? "Starting..." : study ? (preview ? "Begin Preview" : "Begin Survey") : "Loading..."}
           </Button>
         </div>
       </SurveyLayout>
@@ -329,6 +354,34 @@ export function SurveyShell({
 
   if (screen === "completed") {
     const redirectUrl = settings.completionRedirectUrl as string | undefined;
+
+    if (preview) {
+      return (
+        <SurveyLayout>
+          <div className="text-center max-w-md mx-auto space-y-4">
+            <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-2">
+              <p className="text-sm font-medium text-amber-800">Preview Complete</p>
+            </div>
+            <h1>Survey Finished</h1>
+            <p className="text-sm text-muted-foreground">
+              You&apos;ve reached the end of the survey. No responses were recorded.
+            </p>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setScreen("consent");
+                setCurrentIndex(0);
+                setAnswers({});
+                setResponseId(null);
+                setError("");
+              }}
+            >
+              Restart Preview
+            </Button>
+          </div>
+        </SurveyLayout>
+      );
+    }
 
     return (
       <SurveyLayout>
@@ -355,6 +408,15 @@ export function SurveyShell({
   return (
     <SurveyLayout>
       <div className="max-w-2xl w-full mx-auto flex flex-col min-h-[60vh]">
+        {/* Preview banner */}
+        {preview && (
+          <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-1.5 text-center mb-4">
+            <p className="text-xs font-medium text-amber-700">
+              Preview Mode — responses are not recorded
+            </p>
+          </div>
+        )}
+
         {/* Progress */}
         {showProgress && (
           <div className="mb-6">
@@ -406,9 +468,12 @@ function SurveyLayout({ children }: { children: React.ReactNode }) {
         {children}
       </div>
       <footer className="py-4 text-center">
-        <p className="label-mono text-muted-foreground/50">
-          Powered by Storyline
-        </p>
+        <span className="label-mono text-muted-foreground/50 inline-flex items-baseline gap-[0.35em]">
+          Powered by
+          <span className="font-display text-[11px] normal-case tracking-tight font-light">
+            <span style={{ transform: "translateY(-0.04em)", display: "inline-block" }} aria-hidden="true">∴</span>{" "}Storyline
+          </span>
+        </span>
       </footer>
     </div>
   );

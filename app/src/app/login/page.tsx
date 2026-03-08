@@ -4,6 +4,7 @@ import { Suspense, useState } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { Wordmark } from "@/components/ui/wordmark";
 
 function LoginForm() {
   const [email, setEmail] = useState("");
@@ -96,11 +97,9 @@ export default function LoginPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background">
       <div className="w-full max-w-sm space-y-6 p-8">
-        <div className="text-center">
-          <h1 className="font-display text-2xl font-light text-foreground">
-            Storyline Studio
-          </h1>
-          <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground mt-1">
+        <div className="text-center space-y-1">
+          <Wordmark size="lg" className="text-foreground justify-center" />
+          <p className="label-mono text-muted-foreground">
             Admin Login
           </p>
         </div>

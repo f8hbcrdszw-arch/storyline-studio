@@ -105,6 +105,9 @@ const videoDialConfig = z.object({
     )
     .max(4)
     .optional(),
+  showAnnotation: z.boolean().optional(),
+  annotationPrompt: z.string().max(500).optional(),
+  annotationPlaceholder: z.string().max(500).optional(),
 });
 
 // General config schema — accepts any valid config
@@ -115,7 +118,9 @@ export const questionConfigSchema = z.record(z.string(), z.unknown());
 // Config validator per question type
 // ─────────────────────────────────────────────────────────────────────────────
 
-export const configSchemaByType: Record<string, z.ZodType> = {
+export type QuestionType = z.infer<typeof questionTypeEnum>;
+
+export const configSchemaByType: Record<QuestionType, z.ZodType> = {
   VIDEO_DIAL: videoDialConfig,
   MULTIPLE_CHOICE: multipleChoiceConfig,
   LIKERT: likertConfig,
@@ -158,7 +163,7 @@ export const questionOptionSchema = z.object({
   label: z.string().min(1).max(500),
   value: z.string().min(1).max(255),
   order: z.number().int().min(0),
-  imageUrl: z.string().url().max(2000).optional().nullable(),
+  imageUrl: z.string().max(2000).optional().nullable(),
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

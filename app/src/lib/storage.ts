@@ -51,7 +51,6 @@ export async function createPresignedUpload(options: {
     Bucket: BUCKET,
     Key: key,
     ContentType: contentType,
-    ContentLength: MAX_FILE_SIZES[mediaType],
   });
 
   const uploadUrl = await getSignedUrl(s3, command, {

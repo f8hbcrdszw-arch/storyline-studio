@@ -185,8 +185,7 @@ export async function aggregateQuestion(
       return { type: "list", data };
     }
 
-    case "LIKERT":
-    case "MULTI_ITEM_RATING": {
+    case "LIKERT": {
       const values: number[] = answers.map((a) => {
         const val = a.value as Record<string, unknown>;
         return Number(val.value ?? 0);
@@ -208,6 +207,33 @@ export async function aggregateQuestion(
         type: "likert",
         data: { distribution, mean: Math.round(mean * 100) / 100, median, n },
       };
+    }
+
+    case "MULTI_ITEM_RATING": {
+      // Each answer has { values: Record<string, number> } — aggregate per item
+      const itemSums: Record<string, { total: number; count: number; dist: Record<number, number> }> = {};
+      for (const a of answers) {
+        const val = a.value as Record<string, unknown>;
+        const itemValues = val.values as Record<string, number> | undefined;
+        if (!itemValues) continue;
+        for (const [item, rating] of Object.entries(itemValues)) {
+          if (!itemSums[item]) itemSums[item] = { total: 0, count: 0, dist: {} };
+          itemSums[item].total += rating;
+          itemSums[item].count += 1;
+          itemSums[item].dist[rating] = (itemSums[item].dist[rating] || 0) + 1;
+        }
+      }
+
+      // Return as grid type — cells[item][rating] = count
+      const cells: Record<string, Record<string, number>> = {};
+      for (const [item, data] of Object.entries(itemSums)) {
+        cells[item] = {};
+        for (const [rating, count] of Object.entries(data.dist)) {
+          cells[item][rating] = count;
+        }
+      }
+
+      return { type: "grid", data: { cells, n } };
     }
 
     case "NUMERIC": {

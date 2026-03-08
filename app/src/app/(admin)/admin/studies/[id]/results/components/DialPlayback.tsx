@@ -11,11 +11,19 @@ interface DialAggregation {
   n: number;
 }
 
+interface SegmentLine {
+  label: string;
+  color: string;
+  data: DialAggregation[];
+  n: number;
+}
+
 interface DialPlaybackProps {
   questionId: string;
   mediaItem: { source: string; youtubeId: string | null; url: string | null };
   dialData: DialAggregation[];
   lightbulbs: Record<number, number>;
+  segments?: SegmentLine[];
 }
 
 // ─── YouTube API loader (singleton) ─────────────────────────────────────────
@@ -83,7 +91,9 @@ export function DialPlayback({
   mediaItem,
   dialData,
   lightbulbs,
+  segments,
 }: DialPlaybackProps) {
+  const isCompareMode = segments && segments.length > 1;
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -198,7 +208,7 @@ export function DialPlayback({
     rafRef.current = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(rafRef.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isYouTube, dialData, lightbulbs, maxSecond, duration]);
+  }, [isYouTube, dialData, lightbulbs, maxSecond, duration, segments]);
 
   // ─── Canvas overlay drawing ─────────────────────────────────────────────
 
@@ -265,65 +275,146 @@ export function DialPlayback({
         ctx.fillText(String(val), w - 4, yScale(val) + 3);
       }
 
-      // Draw dial line segments up to current time
-      const visibleData = dialData.filter((d) => d.second <= time);
-      if (visibleData.length < 2) {
-        if (visibleData.length === 1) {
-          const d = visibleData[0];
-          ctx.fillStyle = dialColor(d.mean);
-          ctx.beginPath();
-          ctx.arc(xScale(d.second), yScale(d.mean), 4, 0, Math.PI * 2);
-          ctx.fill();
-        }
-        // Still draw lightbulb row even with no dial data
-      } else {
-        // Gradient fill under line
-        for (let i = 0; i < visibleData.length - 1; i++) {
-          const d0 = visibleData[i];
-          const d1 = visibleData[i + 1];
-          const x0 = xScale(d0.second);
-          const x1 = xScale(d1.second);
-          const y0 = yScale(d0.mean);
-          const y1 = yScale(d1.mean);
-          const avgVal = (d0.mean + d1.mean) / 2;
+      if (isCompareMode) {
+        // ── Compare mode: draw multiple segment lines ──────────
+        // Draw "All" first (dimmed, dashed), then named segments on top
+        const sortedSegments = [...segments].sort((a, b) =>
+          a.label === "All" ? -1 : b.label === "All" ? 1 : 0
+        );
 
-          // Fill area
-          ctx.fillStyle = dialColor(avgVal).replace("rgb", "rgba").replace(")", ", 0.15)");
-          ctx.beginPath();
-          ctx.moveTo(x0, yScale(0));
-          ctx.lineTo(x0, y0);
-          ctx.lineTo(x1, y1);
-          ctx.lineTo(x1, yScale(0));
-          ctx.closePath();
-          ctx.fill();
+        for (const seg of sortedSegments) {
+          const visible = seg.data.filter((d) => d.second <= time);
+          if (visible.length < 2) continue;
 
-          // Line segment
-          ctx.strokeStyle = dialColor(avgVal);
-          ctx.lineWidth = 2.5;
+          const isAll = seg.label === "All";
+          ctx.strokeStyle = seg.color;
+          ctx.lineWidth = isAll ? 1.5 : 2.5;
           ctx.lineCap = "round";
+          ctx.lineJoin = "round";
+          ctx.globalAlpha = isAll ? 0.35 : 1;
+
+          if (isAll) {
+            ctx.setLineDash([6, 3]);
+          } else {
+            ctx.setLineDash([]);
+          }
+
           ctx.beginPath();
-          ctx.moveTo(x0, y0);
-          ctx.lineTo(x1, y1);
+          for (let i = 0; i < visible.length; i++) {
+            const x = xScale(visible[i].second);
+            const y = yScale(visible[i].mean);
+            if (i === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+          }
           ctx.stroke();
+          ctx.setLineDash([]);
+          ctx.globalAlpha = 1;
+
+          // Head dot for non-All segments
+          if (!isAll) {
+            const last = visible[visible.length - 1];
+            const lx = xScale(last.second);
+            const ly = yScale(last.mean);
+            ctx.fillStyle = "#ffffff";
+            ctx.beginPath();
+            ctx.arc(lx, ly, 4, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = seg.color;
+            ctx.beginPath();
+            ctx.arc(lx, ly, 2.5, 0, Math.PI * 2);
+            ctx.fill();
+          }
         }
 
-        // Current value dot (head of line)
-        const last = visibleData[visibleData.length - 1];
-        ctx.fillStyle = "#ffffff";
-        ctx.beginPath();
-        ctx.arc(xScale(last.second), yScale(last.mean), 5, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = dialColor(last.mean);
-        ctx.beginPath();
-        ctx.arc(xScale(last.second), yScale(last.mean), 3.5, 0, Math.PI * 2);
-        ctx.fill();
+        // Legend at top of overlay zone
+        ctx.font = "10px system-ui, sans-serif";
+        ctx.textAlign = "left";
+        let legendX = 6;
+        for (const seg of sortedSegments) {
+          if (seg.label === "All") continue;
+          ctx.fillStyle = seg.color;
+          ctx.beginPath();
+          ctx.arc(legendX + 4, chartTop + 10, 3, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
+          ctx.fillText(seg.label, legendX + 10, chartTop + 14);
+          legendX += ctx.measureText(seg.label).width + 20;
+        }
 
-        // Current value label
-        ctx.fillStyle = "#ffffff";
-        ctx.font = "bold 11px system-ui, sans-serif";
-        ctx.textAlign = "center";
-        const labelY = yScale(last.mean) - 10;
-        ctx.fillText(String(Math.round(last.mean)), xScale(last.second), labelY < chartTop + 12 ? yScale(last.mean) + 16 : labelY);
+        // Current values for each segment (right-aligned column)
+        ctx.textAlign = "right";
+        let valueY = chartTop + 14;
+        for (const seg of sortedSegments) {
+          if (seg.label === "All") continue;
+          const visible = seg.data.filter((d) => d.second <= time);
+          if (visible.length === 0) continue;
+          const last = visible[visible.length - 1];
+          ctx.fillStyle = seg.color;
+          ctx.font = "bold 10px system-ui, sans-serif";
+          ctx.fillText(`${seg.label}: ${Math.round(last.mean)}`, w - 6, valueY);
+          valueY += 14;
+        }
+      } else {
+        // ── Single mode: original drawing code ─────────────────
+        const visibleData = dialData.filter((d) => d.second <= time);
+        if (visibleData.length < 2) {
+          if (visibleData.length === 1) {
+            const d = visibleData[0];
+            ctx.fillStyle = dialColor(d.mean);
+            ctx.beginPath();
+            ctx.arc(xScale(d.second), yScale(d.mean), 4, 0, Math.PI * 2);
+            ctx.fill();
+          }
+          // Still draw lightbulb row even with no dial data
+        } else {
+          // Gradient fill under line
+          for (let i = 0; i < visibleData.length - 1; i++) {
+            const d0 = visibleData[i];
+            const d1 = visibleData[i + 1];
+            const x0 = xScale(d0.second);
+            const x1 = xScale(d1.second);
+            const y0 = yScale(d0.mean);
+            const y1 = yScale(d1.mean);
+            const avgVal = (d0.mean + d1.mean) / 2;
+
+            // Fill area
+            ctx.fillStyle = dialColor(avgVal).replace("rgb", "rgba").replace(")", ", 0.15)");
+            ctx.beginPath();
+            ctx.moveTo(x0, yScale(0));
+            ctx.lineTo(x0, y0);
+            ctx.lineTo(x1, y1);
+            ctx.lineTo(x1, yScale(0));
+            ctx.closePath();
+            ctx.fill();
+
+            // Line segment
+            ctx.strokeStyle = dialColor(avgVal);
+            ctx.lineWidth = 2.5;
+            ctx.lineCap = "round";
+            ctx.beginPath();
+            ctx.moveTo(x0, y0);
+            ctx.lineTo(x1, y1);
+            ctx.stroke();
+          }
+
+          // Current value dot (head of line)
+          const last = visibleData[visibleData.length - 1];
+          ctx.fillStyle = "#ffffff";
+          ctx.beginPath();
+          ctx.arc(xScale(last.second), yScale(last.mean), 5, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = dialColor(last.mean);
+          ctx.beginPath();
+          ctx.arc(xScale(last.second), yScale(last.mean), 3.5, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Current value label
+          ctx.fillStyle = "#ffffff";
+          ctx.font = "bold 11px system-ui, sans-serif";
+          ctx.textAlign = "center";
+          const labelY = yScale(last.mean) - 10;
+          ctx.fillText(String(Math.round(last.mean)), xScale(last.second), labelY < chartTop + 12 ? yScale(last.mean) + 16 : labelY);
+        }
       }
 
       // ── Lightbulb / Moments row ──────────────────────────
@@ -386,7 +477,7 @@ export function DialPlayback({
       ctx.lineTo(px, chartTop + totalZoneH);
       ctx.stroke();
     },
-    [dialData, lightbulbs, maxSecond, duration]
+    [dialData, lightbulbs, maxSecond, duration, isCompareMode, segments]
   );
 
   // ─── Playback controls ──────────────────────────────────────────────────

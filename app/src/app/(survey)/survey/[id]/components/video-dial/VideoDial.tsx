@@ -6,10 +6,10 @@ import { Html5VideoPlayer, type VideoPlayerHandle } from "./Html5VideoPlayer";
 import { YouTubeVideoPlayer } from "./YouTubeVideoPlayer";
 import { DialSlider } from "./DialSlider";
 import { LightbulbButton } from "./LightbulbButton";
-import type { SurveyQuestion } from "../SurveyShell";
+import type { QuestionData } from "@/lib/types/question";
 
 interface VideoDialProps {
-  question: SurveyQuestion;
+  question: QuestionData;
   onSubmit: (value: unknown) => void;
   loading: boolean;
 }
@@ -29,15 +29,17 @@ export function VideoDial({ question, onSubmit, loading }: VideoDialProps) {
   const [sliderInteracted, setSliderInteracted] = useState(false);
   const [videoStarted, setVideoStarted] = useState(false);
   const [videoEnded, setVideoEnded] = useState(false);
-  const [isBuffering, setIsBuffering] = useState(false);
+  const [isBufferingUI, setIsBufferingUI] = useState(false);
   const [inactivityWarning, setInactivityWarning] = useState(false);
   const [annotation, setAnnotation] = useState("");
   const [error, setError] = useState("");
   const [mediaUrl, setMediaUrl] = useState<string | null>(null);
 
   const dialValueRef = useRef(dialValue);
+  const isBufferingRef = useRef(false);
   const lastInteractionRef = useRef(Date.now());
   const inactivityTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const mediaFetchControllerRef = useRef<AbortController | null>(null);
 
   // Keep ref in sync so time-update callback always reads latest dial value
   useEffect(() => {
@@ -60,30 +62,43 @@ export function VideoDial({ question, onSubmit, loading }: VideoDialProps) {
         : null
     : null;
 
-  // Fetch signed URL for uploaded media
+  // Sync buffering ref + UI state
+  const handleBuffering = useCallback((buffering: boolean) => {
+    isBufferingRef.current = buffering;
+    setIsBufferingUI(buffering);
+  }, []);
+
+  // Fetch signed URL for uploaded media (with AbortController)
   useEffect(() => {
     if (videoSource?.type === "html5" && mediaItem) {
-      fetch(`/api/media/${question.id}`)
+      const controller = new AbortController();
+      mediaFetchControllerRef.current = controller;
+
+      fetch(`/api/media/${question.id}`, { signal: controller.signal })
         .then((res) => res.json())
         .then((data) => {
-          if (data.signedUrl) setMediaUrl(data.signedUrl);
+          if (data.url) setMediaUrl(data.url);
           else setError("Could not load video");
         })
-        .catch(() => setError("Could not load video"));
+        .catch((err) => {
+          if (err.name !== "AbortError") setError("Could not load video");
+        });
+
+      return () => controller.abort();
     }
   }, [videoSource?.type, mediaItem, question.id]);
 
-  // Per-second capture — uses ref so callback identity stays stable
+  // Per-second capture — uses refs so callback identity stays stable
   const handleTimeUpdate = useCallback(
     (time: number) => {
-      if (isBuffering) return;
+      if (isBufferingRef.current) return;
       const second = Math.floor(time);
       setFeedback((prev) => {
         if (prev[second] !== undefined) return prev;
         return { ...prev, [second]: dialValueRef.current };
       });
     },
-    [isBuffering]
+    []
   );
 
   // Inactivity warning (3 seconds without slider interaction)
@@ -172,15 +187,20 @@ export function VideoDial({ question, onSubmit, loading }: VideoDialProps) {
           onClick={() => {
             setError("");
             setMediaUrl(null);
-            // Re-trigger URL fetch
+            // Re-trigger URL fetch with new AbortController
             if (videoSource.type === "html5" && mediaItem) {
-              fetch(`/api/media/${question.id}`)
+              mediaFetchControllerRef.current?.abort();
+              const controller = new AbortController();
+              mediaFetchControllerRef.current = controller;
+              fetch(`/api/media/${question.id}`, { signal: controller.signal })
                 .then((res) => res.json())
                 .then((data) => {
-                  if (data.signedUrl) setMediaUrl(data.signedUrl);
+                  if (data.url) setMediaUrl(data.url);
                   else setError("Could not load video");
                 })
-                .catch(() => setError("Could not load video"));
+                .catch((err) => {
+                  if (err.name !== "AbortError") setError("Could not load video");
+                });
             }
           }}
         >
@@ -200,7 +220,7 @@ export function VideoDial({ question, onSubmit, loading }: VideoDialProps) {
           onPlay={handleVideoPlay}
           onEnded={handleVideoEnded}
           onTimeUpdate={handleTimeUpdate}
-          onBuffering={setIsBuffering}
+          onBuffering={handleBuffering}
           onError={setError}
         />
       ) : mediaUrl ? (
@@ -210,7 +230,7 @@ export function VideoDial({ question, onSubmit, loading }: VideoDialProps) {
           onPlay={handleVideoPlay}
           onEnded={handleVideoEnded}
           onTimeUpdate={handleTimeUpdate}
-          onBuffering={setIsBuffering}
+          onBuffering={handleBuffering}
           onError={setError}
         />
       ) : (
@@ -220,7 +240,7 @@ export function VideoDial({ question, onSubmit, loading }: VideoDialProps) {
       )}
 
       {/* Buffering indicator */}
-      {isBuffering && videoStarted && (
+      {isBufferingUI && videoStarted && (
         <div className="text-center">
           <p className="text-xs text-muted-foreground">Buffering...</p>
         </div>
@@ -243,7 +263,7 @@ export function VideoDial({ question, onSubmit, loading }: VideoDialProps) {
             onChange={handleSliderChange}
             onInteract={handleSliderInteract}
             mode={mode as "intensity" | "sentiment"}
-            disabled={isBuffering}
+            disabled={isBufferingUI}
           />
         </div>
       )}
@@ -253,13 +273,13 @@ export function VideoDial({ question, onSubmit, loading }: VideoDialProps) {
         <div className="flex items-center justify-center gap-3">
           <LightbulbButton
             onTap={handleLightbulb}
-            disabled={isBuffering}
+            disabled={isBufferingUI}
           />
           {actionButtons.map((btn) => (
             <button
               key={btn.id}
               onClick={() => handleAction(btn.id)}
-              disabled={isBuffering}
+              disabled={isBufferingUI}
               className="px-3 py-2 rounded-lg border border-border bg-background text-sm font-medium hover:bg-muted transition-colors min-h-[44px] disabled:opacity-50"
             >
               {btn.label}

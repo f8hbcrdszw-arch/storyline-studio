@@ -1,11 +1,10 @@
 import Link from "next/link";
+import { Wordmark } from "@/components/ui/wordmark";
 
 export default function Home() {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-background">
-      <h1 className="font-display text-4xl font-light tracking-tight text-foreground">
-        Storyline Studio
-      </h1>
+      <Wordmark size="xl" className="text-foreground" />
       <p className="mt-4 text-muted-foreground">
         Web survey platform with video dial testing
       </p>

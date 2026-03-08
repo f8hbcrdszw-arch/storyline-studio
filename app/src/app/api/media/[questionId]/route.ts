@@ -54,7 +54,10 @@ export const GET = withErrorHandler(
 
       // Generate fresh signed URL
       const signedUrl = await createSignedReadUrl(mediaItem.url);
-      return NextResponse.json({ url: signedUrl });
+      const res = NextResponse.json({ url: signedUrl });
+      // Signed URL valid ~15min — cache briefly per respondent
+      res.headers.set("Cache-Control", "private, max-age=300");
+      return res;
     }
 
     // YouTube media — return the YouTube ID directly

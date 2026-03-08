@@ -22,13 +22,13 @@ export function DialSlider({
 
   const getValueFromPosition = useCallback(
     (clientX: number) => {
-      if (!trackRef.current) return value;
+      if (!trackRef.current) return 50;
       const rect = trackRef.current.getBoundingClientRect();
       const x = clientX - rect.left;
       const pct = Math.max(0, Math.min(1, x / rect.width));
       return Math.round(pct * 100);
     },
-    [value]
+    []
   );
 
   const handlePointerDown = useCallback(
