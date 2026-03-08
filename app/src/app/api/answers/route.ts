@@ -10,7 +10,7 @@ import type { SkipLogicRule } from "@/lib/types/json-fields";
 // POST /api/answers — submit an answer for a question
 export const POST = withErrorHandler(async (request: NextRequest) => {
   // Rate limit: 60 answer submissions per minute per IP
-  const limited = rateLimit(request, "submitAnswer", RATE_LIMITS.submitAnswer);
+  const limited = await rateLimit(request, "submitAnswer", RATE_LIMITS.submitAnswer);
   if (limited) return limited;
 
   const body = await request.json();

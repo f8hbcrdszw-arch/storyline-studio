@@ -36,7 +36,7 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
   if (auth instanceof NextResponse) return auth;
 
   // Rate limit: 10 exports per hour per admin
-  const limited = rateLimit(request, "export", {
+  const limited = await rateLimit(request, "export", {
     limit: 10,
     windowSecs: 3600,
   });

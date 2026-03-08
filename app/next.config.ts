@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { withSentryConfig } from "@sentry/nextjs";
 
 const nextConfig: NextConfig = {
   async headers() {
@@ -32,7 +33,7 @@ const nextConfig: NextConfig = {
               "media-src 'self' https://*.r2.dev https://*.r2.cloudflarestorage.com https://www.youtube.com",
               "frame-src 'self' https://www.youtube-nocookie.com https://www.youtube.com",
               "font-src 'self'",
-              "connect-src 'self' https://*.supabase.co https://*.r2.cloudflarestorage.com https://www.youtube.com https://*.googlevideo.com",
+              "connect-src 'self' https://*.supabase.co https://*.r2.cloudflarestorage.com https://www.youtube.com https://*.googlevideo.com https://*.sentry.io",
             ].join("; "),
           },
         ],
@@ -41,4 +42,15 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+export default withSentryConfig(nextConfig, {
+  // Only upload source maps when SENTRY_AUTH_TOKEN is set (production deploys)
+  silent: !process.env.SENTRY_AUTH_TOKEN,
+  disableLogger: true,
+
+  // Automatically tree-shake Sentry logger statements
+  bundleSizeOptimizations: {
+    excludeDebugStatements: true,
+    excludeReplayIframe: true,
+    excludeReplayShadowDom: true,
+  },
+});

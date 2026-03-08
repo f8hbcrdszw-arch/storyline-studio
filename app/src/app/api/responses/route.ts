@@ -10,7 +10,7 @@ import { randomUUID } from "crypto";
 // POST /api/responses — create a new response (or resume existing)
 export const POST = withErrorHandler(async (request: NextRequest) => {
   // Rate limit: 1 new response per minute per IP
-  const limited = rateLimit(request, "createResponse", RATE_LIMITS.createResponse);
+  const limited = await rateLimit(request, "createResponse", RATE_LIMITS.createResponse);
   if (limited) return limited;
 
   const body = await request.json();

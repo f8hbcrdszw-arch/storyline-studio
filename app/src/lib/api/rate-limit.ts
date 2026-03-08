@@ -1,23 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-
-interface RateLimitEntry {
-  count: number;
-  resetAt: number;
-}
-
-/**
- * Simple in-memory rate limiter for development and single-instance deploys.
- * Replace with @upstash/ratelimit + Vercel KV for production multi-instance.
- */
-const store = new Map<string, RateLimitEntry>();
-
-// Clean expired entries every 5 minutes
-setInterval(() => {
-  const now = Date.now();
-  for (const [key, entry] of store) {
-    if (entry.resetAt < now) store.delete(key);
-  }
-}, 5 * 60 * 1000);
+import { Ratelimit } from "@upstash/ratelimit";
+import { Redis } from "@upstash/redis";
 
 export interface RateLimitConfig {
   /** Maximum number of requests in the window */
@@ -34,31 +17,74 @@ function getClientIp(request: NextRequest): string {
   );
 }
 
-export function rateLimit(
+/**
+ * Check whether Upstash is configured. If not, rate limiting is a no-op
+ * (logs a warning once so it's obvious in dev).
+ */
+const upstashConfigured = !!(
+  process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN
+);
+
+let warnedOnce = false;
+
+function getRedis(): Redis | null {
+  if (!upstashConfigured) {
+    if (!warnedOnce) {
+      console.warn(
+        "[rate-limit] UPSTASH_REDIS_REST_URL / UPSTASH_REDIS_REST_TOKEN not set — rate limiting disabled"
+      );
+      warnedOnce = true;
+    }
+    return null;
+  }
+  return Redis.fromEnv();
+}
+
+// Cache Ratelimit instances by namespace+config so we don't recreate on every call
+const limiters = new Map<string, Ratelimit>();
+
+function getLimiter(namespace: string, config: RateLimitConfig): Ratelimit | null {
+  const redis = getRedis();
+  if (!redis) return null;
+
+  const key = `${namespace}:${config.limit}:${config.windowSecs}`;
+  let limiter = limiters.get(key);
+  if (!limiter) {
+    limiter = new Ratelimit({
+      redis,
+      limiter: Ratelimit.slidingWindow(config.limit, `${config.windowSecs} s`),
+      prefix: `rl:${namespace}`,
+    });
+    limiters.set(key, limiter);
+  }
+  return limiter;
+}
+
+/**
+ * Rate-limit a request. Returns a 429 NextResponse if over the limit,
+ * or null if the request is allowed.
+ *
+ * Drop-in replacement for the previous in-memory implementation.
+ * When Upstash env vars are missing (local dev), rate limiting is skipped.
+ */
+export async function rateLimit(
   request: NextRequest,
   namespace: string,
   config: RateLimitConfig
-): NextResponse | null {
+): Promise<NextResponse | null> {
+  const limiter = getLimiter(namespace, config);
+  if (!limiter) return null; // Upstash not configured — allow
+
   const ip = getClientIp(request);
-  const key = `${namespace}:${ip}`;
-  const now = Date.now();
+  const { success, reset } = await limiter.limit(ip);
 
-  const entry = store.get(key);
-
-  if (!entry || entry.resetAt < now) {
-    store.set(key, { count: 1, resetAt: now + config.windowSecs * 1000 });
-    return null;
-  }
-
-  entry.count++;
-
-  if (entry.count > config.limit) {
-    const retryAfter = Math.ceil((entry.resetAt - now) / 1000);
+  if (!success) {
+    const retryAfter = Math.ceil((reset - Date.now()) / 1000);
     return NextResponse.json(
       { error: "Too many requests" },
       {
         status: 429,
-        headers: { "Retry-After": String(retryAfter) },
+        headers: { "Retry-After": String(Math.max(retryAfter, 1)) },
       }
     );
   }
@@ -67,10 +93,11 @@ export function rateLimit(
 }
 
 /**
- * Pre-configured rate limits from the plan:
- * - 1 new response per minute per IP
+ * Pre-configured rate limits:
+ * - 10 new responses per minute per IP
  * - 60 answer submissions per minute per IP
  * - 5 new respondent IDs per IP per hour
+ * - 120 admin API calls per minute per IP
  */
 export const RATE_LIMITS = {
   createResponse: { limit: 10, windowSecs: 60 },

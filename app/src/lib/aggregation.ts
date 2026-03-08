@@ -35,20 +35,17 @@ export async function getStudyOverviewStats(
   const completed = counts["COMPLETED"] || 0;
   const screenedOut = counts["SCREENED_OUT"] || 0;
 
-  // Calculate average completion time from startedAt to completedAt
+  // Calculate average completion time via SQL (avoids fetching all rows)
   let avgCompletionTimeSecs: number | null = null;
   if (completed > 0) {
-    const completedResponses = await prisma.response.findMany({
-      where: { studyId, status: "COMPLETED", completedAt: { not: null } },
-      select: { startedAt: true, completedAt: true },
-    });
-
-    const totalSecs = completedResponses.reduce((sum, r) => {
-      if (!r.completedAt) return sum;
-      return sum + (r.completedAt.getTime() - r.startedAt.getTime()) / 1000;
-    }, 0);
-
-    avgCompletionTimeSecs = Math.round(totalSecs / completedResponses.length);
+    const result = await prisma.$queryRaw<[{ avg_secs: number | null }]>`
+      SELECT ROUND(AVG(EXTRACT(EPOCH FROM ("completedAt" - "startedAt"))))::int AS avg_secs
+      FROM "Response"
+      WHERE "studyId" = ${studyId}
+        AND "status" = 'COMPLETED'
+        AND "completedAt" IS NOT NULL
+    `;
+    avgCompletionTimeSecs = result[0]?.avg_secs ?? null;
   }
 
   return {
