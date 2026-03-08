@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import {
   DndContext,
   closestCenter,
@@ -19,6 +19,8 @@ import { SortableQuestion } from "./SortableQuestion";
 import { QuestionTypeSelector } from "./QuestionTypeSelector";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
+import { useEditorStore } from "@/stores/editor-store";
+import { useAutosave } from "@/stores/use-autosave";
 import type { QuestionData } from "@/lib/types/question";
 import type { StudyData } from "@/lib/types/study";
 
@@ -43,12 +45,27 @@ export function StudyEditor({
   initialQuestions: QuestionData[];
   isLocked: boolean;
 }) {
-  const [questions, setQuestions] = useState<QuestionData[]>(initialQuestions);
-  const [activePhase, setActivePhase] = useState<string>("ALL");
-  const [showTypeSelector, setShowTypeSelector] = useState(false);
-  const [selectedQuestionId, setSelectedQuestionId] = useState<string | null>(
-    null
-  );
+  // Hydrate store on mount (Server Component -> Client Component pattern)
+  const hydrate = useEditorStore((s) => s.hydrate);
+  useEffect(() => {
+    hydrate(study, initialQuestions);
+  }, [hydrate, study, initialQuestions]);
+
+  // Subscribe to store
+  const questions = useEditorStore((s) => s.questions);
+  const activePhase = useEditorStore((s) => s.activePhase);
+  const setActivePhase = useEditorStore((s) => s.setActivePhase);
+  const selectedQuestionId = useEditorStore((s) => s.selectedQuestionId);
+  const selectQuestion = useEditorStore((s) => s.selectQuestion);
+  const addQuestionToStore = useEditorStore((s) => s.addQuestion);
+  const deleteQuestion = useEditorStore((s) => s.deleteQuestion);
+  const undoDelete = useEditorStore((s) => s.undoDelete);
+  const updateQuestion = useEditorStore((s) => s.updateQuestion);
+  const reorderQuestions = useEditorStore((s) => s.reorderQuestions);
+  const lastDeleted = useEditorStore((s) => s.lastDeleted);
+
+  // Autosave
+  const { flush } = useAutosave();
 
   const reorderControllerRef = useRef<AbortController | null>(null);
 
@@ -77,15 +94,14 @@ export function StudyEditor({
       const [moved] = reordered.splice(oldIndex, 1);
       reordered.splice(newIndex, 0, moved);
 
-      // Update local state immediately
-      setQuestions(reordered.map((q, i) => ({ ...q, order: i })));
+      // Update store (triggers autosave)
+      reorderQuestions(reordered.map((q, i) => ({ ...q, order: i })));
 
-      // Cancel any in-flight reorder request before starting a new one
+      // Also persist reorder immediately via dedicated endpoint
       reorderControllerRef.current?.abort();
       const controller = new AbortController();
       reorderControllerRef.current = controller;
 
-      // Persist to server
       await fetch("/api/questions/reorder", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -98,10 +114,11 @@ export function StudyEditor({
         if (err.name !== "AbortError") console.error("Reorder failed:", err);
       });
     },
-    [questions, study.id]
+    [questions, study.id, reorderQuestions]
   );
 
   const [addError, setAddError] = useState<string | null>(null);
+  const [showTypeSelector, setShowTypeSelector] = useState(false);
 
   const handleAddQuestion = useCallback(
     async (type: string, phase: string) => {
@@ -122,56 +139,42 @@ export function StudyEditor({
 
         if (res.ok) {
           const question = await res.json();
-          setQuestions((prev) => [
-            ...prev,
-            {
-              ...question,
-              config: question.config ?? {},
-              skipLogic: question.skipLogic ?? null,
-              options: question.options ?? [],
-              mediaItems: question.mediaItems ?? [],
-            },
-          ]);
-          setSelectedQuestionId(question.id);
+          addQuestionToStore({
+            ...question,
+            config: question.config ?? {},
+            skipLogic: question.skipLogic ?? null,
+            options: question.options ?? [],
+            mediaItems: question.mediaItems ?? [],
+          });
         } else {
           const data = await res.json().catch(() => ({}));
           const msg = data.error || data.message || `Failed to add question (${res.status})`;
           setAddError(msg);
-          console.error("Failed to add question:", res.status, data);
         }
-      } catch (err) {
+      } catch {
         setAddError("Network error — could not add question");
-        console.error("Failed to add question:", err);
       }
     },
-    [study.id]
+    [study.id, addQuestionToStore]
   );
 
-  const handleDeleteQuestion = useCallback(async (questionId: string) => {
-    const res = await fetch(`/api/questions/${questionId}`, {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-    });
+  const handleDeleteQuestion = useCallback(
+    async (questionId: string) => {
+      const res = await fetch(`/api/questions/${questionId}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+      });
 
-    if (res.ok) {
-      setQuestions((prev) => prev.filter((q) => q.id !== questionId));
-      setSelectedQuestionId(null);
-    }
-  }, []);
-
-  const handleUpdateQuestion = useCallback(
-    (questionId: string, updates: Partial<QuestionData>) => {
-      setQuestions((prev) =>
-        prev.map((q) => (q.id === questionId ? { ...q, ...updates } : q))
-      );
+      if (res.ok) {
+        deleteQuestion(questionId);
+      }
     },
-    []
+    [deleteQuestion]
   );
 
   const handleDuplicateToPhase = useCallback(
     async (sourceQuestion: QuestionData, targetPhase: string): Promise<string | null> => {
       try {
-        // Send only config fields that won't fail validation for an empty config
         const config = sourceQuestion.config && Object.keys(sourceQuestion.config).length > 0
           ? sourceQuestion.config
           : undefined;
@@ -203,25 +206,20 @@ export function StudyEditor({
         }
 
         const newQuestion = await res.json();
-        setQuestions((prev) => [
-          ...prev,
-          {
-            ...newQuestion,
-            config: newQuestion.config ?? {},
-            skipLogic: newQuestion.skipLogic ?? null,
-            options: newQuestion.options ?? [],
-            mediaItems: newQuestion.mediaItems ?? [],
-          },
-        ]);
-        setSelectedQuestionId(newQuestion.id);
+        addQuestionToStore({
+          ...newQuestion,
+          config: newQuestion.config ?? {},
+          skipLogic: newQuestion.skipLogic ?? null,
+          options: newQuestion.options ?? [],
+          mediaItems: newQuestion.mediaItems ?? [],
+        });
         setActivePhase(targetPhase);
         return null;
-      } catch (err) {
-        console.error("Failed to duplicate question:", err);
+      } catch {
         return "Network error — could not create duplicate";
       }
     },
-    [study.id]
+    [study.id, addQuestionToStore, setActivePhase]
   );
 
   return (
@@ -244,29 +242,32 @@ export function StudyEditor({
             </p>
           )}
         </div>
-        {questions.length > 0 && (
-          <a
-            href={`/survey/${study.id}?preview=true`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-          >
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
+        <div className="flex items-center gap-3">
+          <SaveIndicator />
+          {questions.length > 0 && (
+            <a
+              href={`/survey/${study.id}?preview=true`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
             >
-              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-              <circle cx="12" cy="12" r="3" />
-            </svg>
-            Preview Survey
-          </a>
-        )}
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+              Preview Survey
+            </a>
+          )}
+        </div>
       </div>
 
       {/* Phase tabs */}
@@ -319,7 +320,7 @@ export function StudyEditor({
                   isSelected={selectedQuestionId === question.id}
                   isLocked={isLocked}
                   onSelect={() =>
-                    setSelectedQuestionId(
+                    selectQuestion(
                       selectedQuestionId === question.id
                         ? null
                         : question.id
@@ -327,7 +328,7 @@ export function StudyEditor({
                   }
                   onDelete={() => handleDeleteQuestion(question.id)}
                   onUpdate={(updates) =>
-                    handleUpdateQuestion(question.id, updates)
+                    updateQuestion(question.id, updates)
                   }
                   onDuplicateToPhase={handleDuplicateToPhase}
                 />
@@ -346,6 +347,21 @@ export function StudyEditor({
           </div>
         )}
       </div>
+
+      {/* Undo delete toast */}
+      {lastDeleted && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 rounded-lg border border-border bg-background px-4 py-2.5 shadow-lg animate-in fade-in slide-in-from-bottom-2 duration-200">
+          <span className="text-sm text-foreground">
+            Deleted &ldquo;{lastDeleted.question.title}&rdquo;
+          </span>
+          <button
+            onClick={undoDelete}
+            className="text-sm font-medium text-primary hover:underline"
+          >
+            Undo
+          </button>
+        </div>
+      )}
 
       {/* Add question button */}
       {!isLocked && (
@@ -372,4 +388,53 @@ export function StudyEditor({
       )}
     </div>
   );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Save indicator component
+// ─────────────────────────────────────────────────────────────────────────────
+
+function SaveIndicator() {
+  const isDirty = useEditorStore((s) => s.isDirty);
+  const isSaving = useEditorStore((s) => s.isSaving);
+  const saveError = useEditorStore((s) => s.saveError);
+  const lastSavedAt = useEditorStore((s) => s.lastSavedAt);
+
+  if (saveError) {
+    return (
+      <span className="text-xs text-destructive flex items-center gap-1">
+        <span className="w-1.5 h-1.5 rounded-full bg-destructive" />
+        {saveError}
+      </span>
+    );
+  }
+
+  if (isSaving) {
+    return (
+      <span className="text-xs text-muted-foreground flex items-center gap-1">
+        <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+        Saving...
+      </span>
+    );
+  }
+
+  if (isDirty) {
+    return (
+      <span className="text-xs text-muted-foreground flex items-center gap-1">
+        <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+        Unsaved changes
+      </span>
+    );
+  }
+
+  if (lastSavedAt) {
+    return (
+      <span className="text-xs text-muted-foreground flex items-center gap-1">
+        <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+        Saved
+      </span>
+    );
+  }
+
+  return null;
 }

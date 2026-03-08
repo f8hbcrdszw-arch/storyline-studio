@@ -2,9 +2,13 @@
 
 import { useState, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
-import type { QuestionData, QuestionOption, MediaItemData } from "./StudyEditor";
+import type { QuestionData, QuestionOptionData } from "@/lib/types/question";
 import { MediaUploader } from "./MediaUploader";
 import { SkipLogicEditor } from "./SkipLogicEditor";
+import { useEditorStore } from "@/stores/editor-store";
+
+// Re-export for backward compatibility
+export type { QuestionOptionData as QuestionOption, MediaItemData } from "@/lib/types/question";
 
 const PHASE_OPTIONS = [
   { value: "SCREENING", label: "Screening" },
@@ -51,122 +55,57 @@ export function QuestionEditor({
   onUpdate: (updates: Partial<QuestionData>) => void;
   onDuplicateToPhase?: (question: QuestionData, targetPhase: string) => Promise<string | null>;
 }) {
-  const [saving, setSaving] = useState(false);
-  const [saveResult, setSaveResult] = useState<"saved" | "error" | null>(null);
-  const [saveError, setSaveError] = useState<string | null>(null);
   const [duplicating, setDuplicating] = useState(false);
-  const [title, setTitle] = useState(question.title);
-  const [prompt, setPrompt] = useState(question.prompt || "");
-  const [phase, setPhase] = useState(question.phase);
-  const [required, setRequired] = useState(question.required);
-  const [isScreening, setIsScreening] = useState(question.isScreening);
-  const [options, setOptions] = useState<QuestionOption[]>(question.options);
-  const [config, setConfig] = useState<Record<string, unknown>>(
-    question.config
-  );
+  const [dupError, setDupError] = useState<string | null>(null);
 
-  const save = useCallback(async () => {
-    setSaving(true);
-    setSaveResult(null);
-    setSaveError(null);
-    const body: Record<string, unknown> = {
-      title,
-      prompt: prompt || null,
-      phase,
-      required,
-      isScreening,
-      config,
-      skipLogic: question.skipLogic,
-    };
+  // All edits go straight to store via onUpdate (which calls updateQuestion)
+  // This triggers autosave automatically
 
-    if (OPTION_TYPES.has(question.type)) {
-      body.options = options;
-    }
-
-    try {
-      const res = await fetch(`/api/questions/${question.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-
-      if (res.ok) {
-        const updated = await res.json();
-        onUpdate({
-          title,
-          prompt: prompt || null,
-          phase,
-          required,
-          isScreening,
-          config,
-          options: updated.options ?? options,
-        });
-        setSaveResult("saved");
-      } else {
-        const errBody = await res.json().catch(() => ({}));
-        console.error("[save] failed:", res.status, errBody);
-        setSaveResult("error");
-        if (errBody.details) {
-          setSaveError(errBody.details.map((d: { path: string; message: string }) => `${d.path}: ${d.message}`).join(", "));
-        }
-      }
-    } catch {
-      setSaveResult("error");
-    }
-    setSaving(false);
-  }, [
-    title,
-    prompt,
-    phase,
-    required,
-    isScreening,
-    config,
-    options,
-    question.id,
-    question.type,
-    onUpdate,
-  ]);
-
-  const markDirty = useCallback(() => { setSaveResult(null); setSaveError(null); }, []);
-
-  const addOption = useCallback(() => {
-    const nextOrder = options.length;
-    setOptions((prev) => [
-      ...prev,
-      {
-        id: `temp-${Date.now()}`,
-        label: "",
-        value: `option_${nextOrder + 1}`,
-        order: nextOrder,
-        imageUrl: null,
-      },
-    ]);
-    markDirty();
-  }, [options.length, markDirty]);
-
-  const removeOption = useCallback((index: number) => {
-    setOptions((prev) => prev.filter((_, i) => i !== index));
-    markDirty();
-  }, [markDirty]);
-
-  const updateOption = useCallback(
-    (index: number, field: keyof QuestionOption, value: string) => {
-      setOptions((prev) =>
-        prev.map((opt, i) =>
-          i === index ? { ...opt, [field]: value } : opt
-        )
-      );
-      markDirty();
+  const updateField = useCallback(
+    <K extends keyof QuestionData>(field: K, value: QuestionData[K]) => {
+      onUpdate({ [field]: value } as Partial<QuestionData>);
     },
-    [markDirty]
+    [onUpdate]
   );
 
   const updateConfig = useCallback(
     (key: string, value: unknown) => {
-      setConfig((prev) => ({ ...prev, [key]: value }));
-      markDirty();
+      onUpdate({ config: { ...question.config, [key]: value } });
     },
-    [markDirty]
+    [onUpdate, question.config]
+  );
+
+  const updateOption = useCallback(
+    (index: number, field: keyof QuestionOptionData, value: string) => {
+      const updated = question.options.map((opt, i) =>
+        i === index ? { ...opt, [field]: value } : opt
+      );
+      onUpdate({ options: updated });
+    },
+    [onUpdate, question.options]
+  );
+
+  const addOption = useCallback(() => {
+    const nextOrder = question.options.length;
+    onUpdate({
+      options: [
+        ...question.options,
+        {
+          id: `temp-${Date.now()}`,
+          label: "",
+          value: `option_${nextOrder + 1}`,
+          order: nextOrder,
+          imageUrl: null,
+        },
+      ],
+    });
+  }, [onUpdate, question.options]);
+
+  const removeOption = useCallback(
+    (index: number) => {
+      onUpdate({ options: question.options.filter((_, i) => i !== index) });
+    },
+    [onUpdate, question.options]
   );
 
   return (
@@ -179,11 +118,11 @@ export function QuestionEditor({
         </label>
         <input
           type="text"
-          value={title}
-          onChange={(e) => { setTitle(e.target.value); markDirty(); }}
+          value={question.title}
+          onChange={(e) => updateField("title", e.target.value)}
           disabled={isLocked}
           className={`w-full rounded-md border bg-background px-3 py-1.5 text-sm ${
-            title.trim() === "" ? "border-destructive/50" : "border-input"
+            question.title.trim() === "" ? "border-destructive/50" : "border-input"
           }`}
           placeholder="What respondents will see..."
         />
@@ -197,8 +136,8 @@ export function QuestionEditor({
           <span className="font-normal text-muted-foreground/60 ml-1">optional</span>
         </label>
         <textarea
-          value={prompt}
-          onChange={(e) => { setPrompt(e.target.value); markDirty(); }}
+          value={question.prompt || ""}
+          onChange={(e) => updateField("prompt", e.target.value || null)}
           disabled={isLocked}
           rows={2}
           className="w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm resize-none"
@@ -216,10 +155,10 @@ export function QuestionEditor({
             {PHASE_OPTIONS.map((p) => (
               <button
                 key={p.value}
-                onClick={() => { setPhase(p.value); markDirty(); }}
+                onClick={() => updateField("phase", p.value)}
                 disabled={isLocked}
                 className={`px-3 py-1.5 text-xs rounded-md transition-colors ${
-                  phase === p.value
+                  question.phase === p.value
                     ? "bg-primary text-primary-foreground font-medium"
                     : "bg-muted text-muted-foreground hover:text-foreground"
                 } disabled:opacity-50 disabled:cursor-not-allowed`}
@@ -231,7 +170,7 @@ export function QuestionEditor({
         </div>
 
         {/* Post-ballot pair prompt */}
-        {phase === "PRE_BALLOT" && onDuplicateToPhase && !isLocked && (
+        {question.phase === "PRE_BALLOT" && onDuplicateToPhase && !isLocked && (
           <div className="bg-blue-50 border border-blue-200 rounded-md px-3 py-2">
             {allQuestions.some(
               (q) =>
@@ -247,22 +186,9 @@ export function QuestionEditor({
               <button
                 onClick={async () => {
                   setDuplicating(true);
-                  // Use current editor state (not stale prop) for the duplicate
-                  const current: QuestionData = {
-                    ...question,
-                    title,
-                    prompt,
-                    phase,
-                    required,
-                    isScreening,
-                    options,
-                    config,
-                  };
-                  const err = await onDuplicateToPhase(current, "POST_BALLOT");
-                  if (err) {
-                    setSaveResult("error");
-                    setSaveError(err);
-                  }
+                  setDupError(null);
+                  const err = await onDuplicateToPhase(question, "POST_BALLOT");
+                  if (err) setDupError(err);
                   setDuplicating(false);
                 }}
                 disabled={duplicating}
@@ -274,6 +200,9 @@ export function QuestionEditor({
             <p className="text-[10px] text-blue-500 mt-0.5">
               Measure attitude shift by asking the same question after stimulus
             </p>
+            {dupError && (
+              <p className="text-[10px] text-destructive mt-1">{dupError}</p>
+            )}
           </div>
         )}
 
@@ -281,20 +210,20 @@ export function QuestionEditor({
           <label className="flex items-center gap-1.5 text-xs">
             <input
               type="checkbox"
-              checked={required}
-              onChange={(e) => { setRequired(e.target.checked); markDirty(); }}
+              checked={question.required}
+              onChange={(e) => updateField("required", e.target.checked)}
               disabled={isLocked}
               className="rounded"
             />
             Required
           </label>
 
-          {phase === "SCREENING" && (
+          {question.phase === "SCREENING" && (
             <label className="flex items-center gap-1.5 text-xs">
               <input
                 type="checkbox"
-                checked={isScreening}
-                onChange={(e) => { setIsScreening(e.target.checked); markDirty(); }}
+                checked={question.isScreening}
+                onChange={(e) => updateField("isScreening", e.target.checked)}
                 disabled={isLocked}
                 className="rounded"
               />
@@ -306,27 +235,27 @@ export function QuestionEditor({
 
       {/* Type-specific config */}
       {question.type === "MULTIPLE_CHOICE" && (
-        <MultipleChoiceConfig config={config} onUpdate={updateConfig} isLocked={isLocked} />
+        <MultipleChoiceConfig config={question.config} onUpdate={updateConfig} isLocked={isLocked} />
       )}
 
       {LIKERT_TYPES.has(question.type) && (
-        <LikertConfig config={config} onUpdate={updateConfig} isLocked={isLocked} />
+        <LikertConfig config={question.config} onUpdate={updateConfig} isLocked={isLocked} />
       )}
 
       {NUMERIC_TYPES.has(question.type) && (
-        <NumericConfig config={config} onUpdate={updateConfig} isLocked={isLocked} />
+        <NumericConfig config={question.config} onUpdate={updateConfig} isLocked={isLocked} />
       )}
 
       {MATRIX_TYPES.has(question.type) && (
-        <MatrixConfig config={config} onUpdate={updateConfig} isLocked={isLocked} />
+        <MatrixConfig config={question.config} onUpdate={updateConfig} isLocked={isLocked} />
       )}
 
       {question.type === "SENTIMENT" && (
-        <SentimentConfig config={config} onUpdate={updateConfig} isLocked={isLocked} />
+        <SentimentConfig config={question.config} onUpdate={updateConfig} isLocked={isLocked} />
       )}
 
       {question.type === "VIDEO_DIAL" && (
-        <VideoDialConfig config={config} onUpdate={updateConfig} isLocked={isLocked} />
+        <VideoDialConfig config={question.config} onUpdate={updateConfig} isLocked={isLocked} />
       )}
 
       {/* Options editor for applicable types */}
@@ -336,7 +265,7 @@ export function QuestionEditor({
             Options
           </label>
           <div className="space-y-2">
-            {options.map((opt, i) => (
+            {question.options.map((opt, i) => (
               <div key={opt.id} className="space-y-1">
                 <div className="flex items-center gap-2">
                   <span className="text-xs text-muted-foreground w-4 text-right">
@@ -373,16 +302,16 @@ export function QuestionEditor({
                     imageUrl={opt.imageUrl}
                     disabled={isLocked}
                     onUploaded={(key) => {
-                      setOptions((prev) =>
-                        prev.map((o, idx) => idx === i ? { ...o, imageUrl: key } : o)
+                      const updated = question.options.map((o, idx) =>
+                        idx === i ? { ...o, imageUrl: key } : o
                       );
-                      markDirty();
+                      onUpdate({ options: updated });
                     }}
                     onRemoved={() => {
-                      setOptions((prev) =>
-                        prev.map((o, idx) => idx === i ? { ...o, imageUrl: null } : o)
+                      const updated = question.options.map((o, idx) =>
+                        idx === i ? { ...o, imageUrl: null } : o
                       );
-                      markDirty();
+                      onUpdate({ options: updated });
                     }}
                   />
                 )}
@@ -405,7 +334,7 @@ export function QuestionEditor({
         <MediaUploader
           questionId={question.id}
           mediaItems={question.mediaItems}
-          onMediaAdded={(item: MediaItemData) =>
+          onMediaAdded={(item) =>
             onUpdate({ mediaItems: [...question.mediaItems, item] })
           }
           onMediaRemoved={(id: string) =>
@@ -424,37 +353,12 @@ export function QuestionEditor({
         }}
         isLocked={isLocked}
       />
-
-      {/* Save button */}
-      {!isLocked && (
-        <div className="flex items-center justify-end gap-2">
-          {saveResult === "error" && (
-            <span className="text-xs text-destructive">
-              {saveError || (title.trim() === "" ? "Question text is required" : "Save failed")}
-            </span>
-          )}
-          <Button
-            size="sm"
-            onClick={save}
-            loading={saving}
-            disabled={title.trim() === ""}
-            variant={saveResult === "saved" ? "ghost" : "default"}
-            className={
-              saveResult === "saved"
-                ? "text-green-600 pointer-events-none"
-                : undefined
-            }
-          >
-            {saveResult === "saved" ? "Saved" : "Save Changes"}
-          </Button>
-        </div>
-      )}
     </div>
   );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Type-specific config components
+// Type-specific config components (unchanged from before)
 // ─────────────────────────────────────────────────────────────────────────────
 
 function MultipleChoiceConfig({
