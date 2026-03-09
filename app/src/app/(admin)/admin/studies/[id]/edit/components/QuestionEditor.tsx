@@ -61,12 +61,42 @@ export function QuestionEditor({
   const [duplicating, setDuplicating] = useState(false);
   const [dupError, setDupError] = useState<string | null>(null);
   const titleRef = useRef<HTMLInputElement>(null);
+  const promptRef = useRef<HTMLTextAreaElement>(null);
+  const optionsRef = useRef<HTMLDivElement>(null);
 
   // Auto-focus title on mount
   useEffect(() => {
     const timer = setTimeout(() => titleRef.current?.focus(), 80);
     return () => clearTimeout(timer);
   }, []);
+
+  // Bidirectional preview sync — listen for focus-field events from LivePreview
+  useEffect(() => {
+    function handleFocusField(e: Event) {
+      const { questionId, field } = (e as CustomEvent).detail;
+      if (questionId !== question.id) return;
+
+      switch (field) {
+        case "title":
+          titleRef.current?.focus();
+          titleRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+          break;
+        case "prompt":
+          promptRef.current?.focus();
+          promptRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+          break;
+        case "options":
+          optionsRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+          // Focus first option input
+          const firstInput = optionsRef.current?.querySelector("input[type='text']") as HTMLInputElement | null;
+          firstInput?.focus();
+          break;
+      }
+    }
+
+    window.addEventListener("editor:focus-field", handleFocusField);
+    return () => window.removeEventListener("editor:focus-field", handleFocusField);
+  }, [question.id]);
 
   const updateField = useCallback(
     <K extends keyof QuestionData>(field: K, value: QuestionData[K]) => {
@@ -120,6 +150,7 @@ export function QuestionEditor({
             <span className="font-normal normal-case tracking-normal text-muted-foreground/40 ml-1.5">optional</span>
           </label>
           <textarea
+            ref={promptRef}
             value={question.prompt || ""}
             onChange={(e) => updateField("prompt", e.target.value || null)}
             disabled={isLocked}
@@ -232,12 +263,14 @@ export function QuestionEditor({
       {/* Options editor for applicable types */}
       {OPTION_TYPES.has(question.type) && (
         <StaggerChild index={staggerIndex++}>
-          <OptionsEditor
-            options={question.options}
-            questionType={question.type}
-            isLocked={isLocked}
-            onUpdate={(options) => onUpdate({ options })}
-          />
+          <div ref={optionsRef}>
+            <OptionsEditor
+              options={question.options}
+              questionType={question.type}
+              isLocked={isLocked}
+              onUpdate={(options) => onUpdate({ options })}
+            />
+          </div>
         </StaggerChild>
       )}
 

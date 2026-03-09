@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { QuestionRenderer } from "@/components/survey";
 import { ErrorBoundary } from "@/components/error-boundary";
@@ -71,6 +71,65 @@ export function LivePreview() {
     ? questions.findIndex((q) => q.id === question.id)
     : -1;
 
+  // Bidirectional sync: click on preview elements to focus editor fields.
+  // We detect what was clicked by walking up from the click target to find
+  // semantic elements (h2/h3 = title, p = instructions, button/label = options).
+  const handlePreviewClick = useCallback(
+    (e: React.MouseEvent) => {
+      if (!question) return;
+
+      const target = e.target as HTMLElement;
+      let el: HTMLElement | null = target;
+      let field: string | null = null;
+
+      // Walk up to find a semantic hint
+      while (el && !field) {
+        const tag = el.tagName.toLowerCase();
+        if (tag === "h2" || tag === "h3" || el.classList.contains("question-title")) {
+          field = "title";
+        } else if (tag === "p" && el.classList.contains("question-prompt")) {
+          field = "prompt";
+        } else if (
+          (tag === "button" || tag === "label") &&
+          el.closest("[data-option-index]")
+        ) {
+          field = "options";
+        }
+        el = el.parentElement;
+      }
+
+      // Default: focus title if we couldn't determine the field
+      if (!field) field = "title";
+
+      // Dispatch custom event for QuestionEditor to pick up
+      window.dispatchEvent(
+        new CustomEvent("editor:focus-field", {
+          detail: { questionId: question.id, field },
+        })
+      );
+
+      // Visual feedback: ripple from click point
+      const container = e.currentTarget as HTMLElement;
+      const rect = container.getBoundingClientRect();
+      const ripple = document.createElement("div");
+      ripple.className = "pointer-events-none absolute rounded-full bg-primary/10";
+      ripple.style.left = `${e.clientX - rect.left - 20}px`;
+      ripple.style.top = `${e.clientY - rect.top - 20}px`;
+      ripple.style.width = "40px";
+      ripple.style.height = "40px";
+      ripple.style.transform = "scale(0)";
+      ripple.style.opacity = "1";
+      ripple.style.transition = "transform 0.4s ease-out, opacity 0.4s ease-out";
+      container.appendChild(ripple);
+      requestAnimationFrame(() => {
+        ripple.style.transform = "scale(3)";
+        ripple.style.opacity = "0";
+      });
+      setTimeout(() => ripple.remove(), 500);
+    },
+    [question]
+  );
+
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
@@ -85,8 +144,12 @@ export function LivePreview() {
         )}
       </div>
 
-      {/* Preview content */}
-      <div className="flex-1 overflow-y-auto relative">
+      {/* Preview content — click to focus corresponding editor field */}
+      <div
+        className="flex-1 overflow-y-auto relative"
+        onClick={previewQuestion ? handlePreviewClick : undefined}
+        style={previewQuestion ? { cursor: "pointer" } : undefined}
+      >
         <AnimatePresence mode="wait" initial={false}>
           {!previewQuestion ? (
             <motion.div
@@ -157,7 +220,7 @@ export function LivePreview() {
       {previewQuestion && (
         <div className="shrink-0 px-3 py-2 border-t border-border/30">
           <p className="text-[10px] text-muted-foreground/30 text-center">
-            Resize panel to test responsive layout
+            Click to edit &middot; Resize to test layout
           </p>
         </div>
       )}

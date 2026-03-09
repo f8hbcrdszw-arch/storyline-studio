@@ -12,6 +12,7 @@ import { QuestionEditor } from "./QuestionEditor";
 import { QuestionTypeSelector } from "./QuestionTypeSelector";
 import { LivePreview } from "./LivePreview";
 import { SortableQuestion } from "./SortableQuestion";
+import { springForIntent } from "@/lib/motion";
 import type { QuestionData } from "@/lib/types/question";
 import type { StudyData } from "@/lib/types/study";
 
@@ -244,128 +245,139 @@ function EditorCenter({ study, isLocked }: { study: StudyData; isLocked: boolean
 
   return (
     <div>
-      {!selectedQuestion && (
-        <motion.div
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ type: "spring", stiffness: 300, damping: 25, delay: 0.05 }}
-          className="flex flex-col items-center justify-center py-24 text-center"
-        >
-          {questions.length === 0 ? (
-            <>
-              {/* Empty spine — elegant minimal illustration */}
-              <div className="flex flex-col items-center gap-1.5 mb-8">
-                <div className="w-5 h-5 rounded-full border-2 border-dashed border-primary/25 flex items-center justify-center">
-                  <div className="w-1.5 h-1.5 rounded-full bg-primary/20" />
+      {/* AnimatePresence enables simultaneous exit of old question + enter of new question.
+          mode="wait" ensures clean handoff; the exiting card fades out quickly while
+          the new card fades in — no overlapping layouts. */}
+      <AnimatePresence mode="wait" initial={false}>
+        {!selectedQuestion ? (
+          <motion.div
+            key="empty"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            className="flex flex-col items-center justify-center py-24 text-center"
+          >
+            {questions.length === 0 ? (
+              <>
+                {/* Empty spine — elegant minimal illustration */}
+                <div className="flex flex-col items-center gap-1.5 mb-8">
+                  <div className="w-5 h-5 rounded-full border-2 border-dashed border-primary/25 flex items-center justify-center">
+                    <div className="w-1.5 h-1.5 rounded-full bg-primary/20" />
+                  </div>
+                  <div className="w-px h-6 bg-gradient-to-b from-primary/15 to-border/20" />
+                  <div className="w-3.5 h-3.5 rounded-full border-2 border-dashed border-border/25" />
+                  <div className="w-px h-4 bg-gradient-to-b from-border/20 to-transparent" />
+                  <div className="w-2.5 h-2.5 rounded-full border-2 border-dashed border-border/15" />
                 </div>
-                <div className="w-px h-6 bg-gradient-to-b from-primary/15 to-border/20" />
-                <div className="w-3.5 h-3.5 rounded-full border-2 border-dashed border-border/25" />
-                <div className="w-px h-4 bg-gradient-to-b from-border/20 to-transparent" />
-                <div className="w-2.5 h-2.5 rounded-full border-2 border-dashed border-border/15" />
-              </div>
-              <p className="text-sm font-medium text-foreground mb-1">
-                Your survey starts here
-              </p>
-              <p className="text-xs text-muted-foreground/50 mb-8 max-w-[200px]">
-                Add your first question to begin building
-              </p>
-            </>
-          ) : (
-            <>
-              {/* Has questions but none selected */}
-              <div className="mb-8">
-                <div className="w-12 h-12 rounded-xl border-2 border-dashed border-border/30 flex items-center justify-center mb-4 mx-auto">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" className="text-muted-foreground/25">
-                    <polyline points="9 18 15 12 9 6" />
-                  </svg>
-                </div>
-                <p className="text-sm text-muted-foreground/50">
-                  Select a question to edit
+                <p className="text-sm font-medium text-foreground mb-1">
+                  Your survey starts here
                 </p>
-                <p className="text-[10px] text-muted-foreground/30 mt-1">
-                  or use arrow keys to navigate
+                <p className="text-xs text-muted-foreground/50 mb-8 max-w-[200px]">
+                  Add your first question to begin building
                 </p>
-              </div>
-            </>
-          )}
-          {!isLocked && (
-            <div className="w-full max-w-xs">
-              {addError && (
-                <p className="text-sm text-destructive mb-2">{addError}</p>
-              )}
-              {showTypeSelector ? (
-                <QuestionTypeSelector
-                  phase="PRE_BALLOT"
-                  onSelect={handleAddQuestion}
-                  onCancel={() => setShowTypeSelector(false)}
-                />
-              ) : (
-                <Button
-                  variant="outline"
-                  onClick={() => setShowTypeSelector(true)}
-                  className="w-full rounded-xl border-dashed border-border/60 hover:border-primary/30 hover:bg-primary/[0.02] transition-all"
-                >
-                  + Add Question
-                </Button>
-              )}
-            </div>
-          )}
-        </motion.div>
-      )}
-
-      {selectedQuestion && (
-        <>
-          {/* Question card with inline editor */}
-          <SortableQuestion
-            question={selectedQuestion}
-            allQuestions={questions}
-            isSelected={true}
-            isLocked={isLocked}
-            onSelect={() => {}}
-            onDelete={() => handleDeleteQuestion(selectedQuestion.id)}
-            onUpdate={(updates) => updateQuestion(selectedQuestion.id, updates)}
-            onDuplicateToPhase={handleDuplicateToPhase}
-          />
-
-          {/* Add question below */}
-          {!isLocked && (
-            <div className="mt-6 pt-4">
-              {addError && (
-                <p className="text-sm text-destructive mb-2">{addError}</p>
-              )}
-              {showTypeSelector ? (
-                <QuestionTypeSelector
-                  phase={selectedQuestion.phase}
-                  onSelect={handleAddQuestion}
-                  onCancel={() => setShowTypeSelector(false)}
-                />
-              ) : (
-                <button
-                  onClick={() => setShowTypeSelector(true)}
-                  className="w-full py-3 text-xs text-muted-foreground/40 hover:text-primary border border-dashed border-border/40 hover:border-primary/30 rounded-xl transition-all hover:bg-primary/[0.02] group"
-                >
-                  <span className="inline-flex items-center gap-1.5">
-                    <svg
-                      width="12"
-                      height="12"
-                      viewBox="0 0 12 12"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.5"
-                      strokeLinecap="round"
-                      className="group-hover:rotate-90 transition-transform duration-200"
-                    >
-                      <line x1="6" y1="1" x2="6" y2="11" />
-                      <line x1="1" y1="6" x2="11" y2="6" />
+              </>
+            ) : (
+              <>
+                {/* Has questions but none selected */}
+                <div className="mb-8">
+                  <div className="w-12 h-12 rounded-xl border-2 border-dashed border-border/30 flex items-center justify-center mb-4 mx-auto">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" className="text-muted-foreground/25">
+                      <polyline points="9 18 15 12 9 6" />
                     </svg>
-                    Add question
-                  </span>
-                </button>
-              )}
-            </div>
-          )}
-        </>
-      )}
+                  </div>
+                  <p className="text-sm text-muted-foreground/50">
+                    Select a question to edit
+                  </p>
+                  <p className="text-[10px] text-muted-foreground/30 mt-1">
+                    or use arrow keys to navigate
+                  </p>
+                </div>
+              </>
+            )}
+            {!isLocked && (
+              <div className="w-full max-w-xs">
+                {addError && (
+                  <p className="text-sm text-destructive mb-2">{addError}</p>
+                )}
+                {showTypeSelector ? (
+                  <QuestionTypeSelector
+                    phase="PRE_BALLOT"
+                    onSelect={handleAddQuestion}
+                    onCancel={() => setShowTypeSelector(false)}
+                  />
+                ) : (
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowTypeSelector(true)}
+                    className="w-full rounded-xl border-dashed border-border/60 hover:border-primary/30 hover:bg-primary/[0.02] transition-all"
+                  >
+                    + Add Question
+                  </Button>
+                )}
+              </div>
+            )}
+          </motion.div>
+        ) : (
+          <motion.div
+            key={selectedQuestion.id}
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            transition={springForIntent("select")}
+          >
+            {/* Question card with inline editor */}
+            <SortableQuestion
+              question={selectedQuestion}
+              allQuestions={questions}
+              isSelected={true}
+              isLocked={isLocked}
+              onSelect={() => {}}
+              onDelete={() => handleDeleteQuestion(selectedQuestion.id)}
+              onUpdate={(updates) => updateQuestion(selectedQuestion.id, updates)}
+              onDuplicateToPhase={handleDuplicateToPhase}
+            />
+
+            {/* Add question below */}
+            {!isLocked && (
+              <div className="mt-6 pt-4">
+                {addError && (
+                  <p className="text-sm text-destructive mb-2">{addError}</p>
+                )}
+                {showTypeSelector ? (
+                  <QuestionTypeSelector
+                    phase={selectedQuestion.phase}
+                    onSelect={handleAddQuestion}
+                    onCancel={() => setShowTypeSelector(false)}
+                  />
+                ) : (
+                  <button
+                    onClick={() => setShowTypeSelector(true)}
+                    className="w-full py-3 text-xs text-muted-foreground/40 hover:text-primary border border-dashed border-border/40 hover:border-primary/30 rounded-xl transition-all hover:bg-primary/[0.02] group"
+                  >
+                    <span className="inline-flex items-center gap-1.5">
+                      <svg
+                        width="12"
+                        height="12"
+                        viewBox="0 0 12 12"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                        strokeLinecap="round"
+                        className="group-hover:rotate-90 transition-transform duration-200"
+                      >
+                        <line x1="6" y1="1" x2="6" y2="11" />
+                        <line x1="1" y1="6" x2="11" y2="6" />
+                      </svg>
+                      Add question
+                    </span>
+                  </button>
+                )}
+              </div>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Undo delete toast */}
       <AnimatePresence>

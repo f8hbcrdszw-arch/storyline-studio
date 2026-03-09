@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import type { QuestionData, QuestionOptionData } from "@/lib/types/question";
 import type { StudyData } from "@/lib/types/study";
+import { tempo } from "@/lib/motion";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // State shape — discriminated union eliminates null checks on study
@@ -78,7 +79,10 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
     }),
 
   // ── Selection / view ──
-  selectQuestion: (id) => set({ selectedQuestionId: id }),
+  selectQuestion: (id) => {
+    tempo.record();
+    set({ selectedQuestionId: id });
+  },
   setActivePhase: (phase) => set({ activePhase: phase }),
 
   // ── Question mutations ──
@@ -92,14 +96,16 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
       version: s.version + 1,
     })),
 
-  addQuestion: (question) =>
+  addQuestion: (question) => {
+    tempo.record();
     set((s) => ({
       questions: [...s.questions, question],
       selectedQuestionId: question.id,
       isDirty: true,
       saveError: null,
       version: s.version + 1,
-    })),
+    }));
+  },
 
   deleteQuestion: (id) => {
     const s = get();
