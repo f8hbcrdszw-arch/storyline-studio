@@ -211,6 +211,20 @@ export function QuestionList({ isLocked }: { isLocked: boolean }) {
           </div>
         </div>
       )}
+
+      {/* Keyboard hint */}
+      {questions.length > 1 && (
+        <div className="mt-4 pt-3 border-t border-border/20">
+          <div className="flex items-center justify-center gap-1.5 text-[9px] text-muted-foreground/25">
+            <kbd className="px-1 py-0.5 rounded border border-border/30 bg-muted/30 font-mono">&#8593;</kbd>
+            <kbd className="px-1 py-0.5 rounded border border-border/30 bg-muted/30 font-mono">&#8595;</kbd>
+            <span>navigate</span>
+            <span className="mx-1">&middot;</span>
+            <kbd className="px-1 py-0.5 rounded border border-border/30 bg-muted/30 font-mono">esc</kbd>
+            <span>deselect</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

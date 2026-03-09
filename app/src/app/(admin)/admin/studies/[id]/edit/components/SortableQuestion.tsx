@@ -56,17 +56,17 @@ export function SortableQuestion({
     <div
       ref={setNodeRef}
       style={style}
-      className={`rounded-xl border transition-[border-color,box-shadow] duration-150 ${
+      className={`rounded-xl border transition-all duration-200 ${
         isDragging
-          ? "border-primary/40 shadow-lg scale-[1.01]"
+          ? "border-primary/40 shadow-lg scale-[1.01] bg-background"
           : isSelected
-          ? "border-primary/30 bg-background shadow-md ring-1 ring-primary/8"
-          : "border-border hover:border-primary/20 bg-background shadow-sm"
+          ? "border-primary/20 bg-background shadow-md ring-1 ring-primary/6"
+          : "border-border/60 hover:border-border bg-background hover:shadow-sm"
       }`}
     >
       {/* Header row */}
       <div
-        className={`flex items-center gap-3 px-4 py-3 ${isSelected ? "" : "cursor-pointer"}`}
+        className={`flex items-center gap-3 px-4 ${isSelected ? "py-3.5" : "py-3 cursor-pointer group/header"}`}
         onClick={isSelected ? undefined : onSelect}
       >
         {/* Drag handle — only when draggable */}
@@ -75,7 +75,7 @@ export function SortableQuestion({
             {...attributes}
             {...listeners}
             onClick={(e) => e.stopPropagation()}
-            className="cursor-grab active:cursor-grabbing text-muted-foreground/25 hover:text-muted-foreground/60 transition-colors shrink-0 -ml-1"
+            className="cursor-grab active:cursor-grabbing text-muted-foreground/20 hover:text-muted-foreground/50 transition-colors shrink-0 -ml-1 opacity-0 group-hover/header:opacity-100"
             aria-label="Drag to reorder"
           >
             <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
@@ -93,41 +93,41 @@ export function SortableQuestion({
         )}
 
         {/* Order number */}
-        <span className="text-xs text-muted-foreground/50 w-5 text-right font-mono shrink-0 tabular-nums">
+        <span className={`text-xs w-5 text-right font-mono shrink-0 tabular-nums transition-colors duration-150 ${
+          isSelected ? "text-primary/60" : "text-muted-foreground/40"
+        }`}>
           {question.order + 1}
         </span>
 
         {/* Question info */}
         <div className="flex-1 min-w-0">
-          <p className={`text-sm font-medium truncate transition-colors duration-150 ${
-            isSelected ? "text-primary" : "text-foreground"
+          <p className={`text-sm truncate transition-colors duration-150 ${
+            isSelected ? "font-semibold text-foreground" : "font-medium text-foreground group-hover/header:text-foreground"
           }`}>
             {question.title || "Untitled question"}
           </p>
-          <div className="flex items-center gap-2 mt-1">
-            <span
-              className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
-                PHASE_COLORS[question.phase] || "bg-gray-100 text-gray-800"
-              }`}
-            >
-              {question.phase.replace(/_/g, " ")}
-            </span>
-            <span className="text-[11px] text-muted-foreground">
+          <div className="flex items-center gap-2 mt-0.5">
+            <span className="text-[10px] text-muted-foreground/50">
               {TYPE_LABELS[question.type] || question.type}
             </span>
+            <span className="text-[10px] text-muted-foreground/30">
+              {question.phase.replace(/_/g, " ").toLowerCase()}
+            </span>
             {question.isScreening && (
-              <span className="text-[10px] text-amber-600 font-medium">
-                SCREENING
+              <span className="text-[10px] text-amber-600/70 font-medium">
+                screening
               </span>
             )}
             {question.required && (
-              <span className="text-[10px] text-red-500/70">Required</span>
+              <span className="text-[10px] text-primary/40">required</span>
             )}
           </div>
         </div>
 
-        {/* Actions */}
-        <div className="flex items-center gap-1 shrink-0">
+        {/* Actions — appear on hover for collapsed, always visible for selected */}
+        <div className={`flex items-center gap-1 shrink-0 transition-opacity ${
+          isSelected ? "opacity-100" : "opacity-0 group-hover/header:opacity-100"
+        }`}>
           <Button
             variant="ghost"
             size="icon-xs"
@@ -135,7 +135,7 @@ export function SortableQuestion({
               e.stopPropagation();
               setShowPreview(true);
             }}
-            className="text-muted-foreground/40 hover:text-foreground"
+            className="text-muted-foreground/30 hover:text-foreground"
             title="Preview question"
           >
             <svg
@@ -160,7 +160,7 @@ export function SortableQuestion({
                 e.stopPropagation();
                 setConfirmDelete(true);
               }}
-              className="text-muted-foreground/40 hover:text-destructive"
+              className="text-muted-foreground/30 hover:text-destructive"
             >
               <svg
                 width="14"
@@ -187,7 +187,7 @@ export function SortableQuestion({
             transition={springForIntent(isSelected ? "expand" : "collapse")}
             className="overflow-hidden"
           >
-            <div className="px-5 pb-5">
+            <div className="px-5 pb-5 pt-1">
               <QuestionEditor
                 question={question}
                 allQuestions={allQuestions}

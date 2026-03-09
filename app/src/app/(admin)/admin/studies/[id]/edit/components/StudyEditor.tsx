@@ -68,18 +68,25 @@ function EditorHeader({ study, isLocked }: { study: StudyData; isLocked: boolean
       <div className="flex items-center gap-3 min-w-0">
         <Link
           href={`/admin/studies/${study.id}`}
-          className="text-muted-foreground hover:text-foreground text-sm shrink-0"
+          className="text-muted-foreground/60 hover:text-foreground text-xs shrink-0 transition-colors"
         >
-          &larr; Back
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="inline -mt-px mr-1">
+            <polyline points="15 18 9 12 15 6" />
+          </svg>
+          Back
         </Link>
-        <h1 className="text-base font-semibold truncate">{study.title}</h1>
+        <div className="w-px h-4 bg-border/40" />
+        <h1 className="text-sm font-medium truncate text-foreground">{study.title}</h1>
         {isLocked && (
-          <span className="text-[10px] text-amber-600 shrink-0">
-            Locked — has responses
+          <span className="text-[10px] text-amber-600/70 bg-amber-50/80 px-2 py-0.5 rounded-full shrink-0">
+            Locked
           </span>
         )}
       </div>
       <div className="flex items-center gap-3 shrink-0">
+        <span className="text-[10px] tabular-nums text-muted-foreground/30">
+          {questions.length} question{questions.length !== 1 ? "s" : ""}
+        </span>
         <SaveIndicator />
       </div>
     </div>
@@ -242,28 +249,43 @@ function EditorCenter({ study, isLocked }: { study: StudyData; isLocked: boolean
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ type: "spring", stiffness: 300, damping: 25, delay: 0.05 }}
-          className="flex flex-col items-center justify-center py-20 text-center"
+          className="flex flex-col items-center justify-center py-24 text-center"
         >
           {questions.length === 0 ? (
             <>
-              {/* Empty spine node */}
-              <div className="flex flex-col items-center gap-1 mb-6">
-                <div className="w-4 h-4 rounded-full border-2 border-dashed border-primary/20" />
-                <div className="w-px h-8 bg-border/40" />
-                <div className="w-3 h-3 rounded-full border-2 border-dashed border-border/30" />
+              {/* Empty spine — elegant minimal illustration */}
+              <div className="flex flex-col items-center gap-1.5 mb-8">
+                <div className="w-5 h-5 rounded-full border-2 border-dashed border-primary/25 flex items-center justify-center">
+                  <div className="w-1.5 h-1.5 rounded-full bg-primary/20" />
+                </div>
+                <div className="w-px h-6 bg-gradient-to-b from-primary/15 to-border/20" />
+                <div className="w-3.5 h-3.5 rounded-full border-2 border-dashed border-border/25" />
+                <div className="w-px h-4 bg-gradient-to-b from-border/20 to-transparent" />
+                <div className="w-2.5 h-2.5 rounded-full border-2 border-dashed border-border/15" />
               </div>
               <p className="text-sm font-medium text-foreground mb-1">
                 Your survey starts here
               </p>
-              <p className="text-xs text-muted-foreground/60 mb-6">
+              <p className="text-xs text-muted-foreground/50 mb-8 max-w-[200px]">
                 Add your first question to begin building
               </p>
             </>
           ) : (
             <>
-              <p className="text-sm text-muted-foreground/60 mb-6">
-                Select a question from the list to edit
-              </p>
+              {/* Has questions but none selected */}
+              <div className="mb-8">
+                <div className="w-12 h-12 rounded-xl border-2 border-dashed border-border/30 flex items-center justify-center mb-4 mx-auto">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" className="text-muted-foreground/25">
+                    <polyline points="9 18 15 12 9 6" />
+                  </svg>
+                </div>
+                <p className="text-sm text-muted-foreground/50">
+                  Select a question to edit
+                </p>
+                <p className="text-[10px] text-muted-foreground/30 mt-1">
+                  or use arrow keys to navigate
+                </p>
+              </div>
             </>
           )}
           {!isLocked && (
@@ -281,7 +303,7 @@ function EditorCenter({ study, isLocked }: { study: StudyData; isLocked: boolean
                 <Button
                   variant="outline"
                   onClick={() => setShowTypeSelector(true)}
-                  className="w-full rounded-xl"
+                  className="w-full rounded-xl border-dashed border-border/60 hover:border-primary/30 hover:bg-primary/[0.02] transition-all"
                 >
                   + Add Question
                 </Button>
@@ -307,7 +329,7 @@ function EditorCenter({ study, isLocked }: { study: StudyData; isLocked: boolean
 
           {/* Add question below */}
           {!isLocked && (
-            <div className="mt-4 pt-4 border-t border-border">
+            <div className="mt-6 pt-4">
               {addError && (
                 <p className="text-sm text-destructive mb-2">{addError}</p>
               )}
@@ -318,14 +340,27 @@ function EditorCenter({ study, isLocked }: { study: StudyData; isLocked: boolean
                   onCancel={() => setShowTypeSelector(false)}
                 />
               ) : (
-                <Button
-                  variant="outline"
+                <button
                   onClick={() => setShowTypeSelector(true)}
-                  className="w-full"
-                  size="sm"
+                  className="w-full py-3 text-xs text-muted-foreground/40 hover:text-primary border border-dashed border-border/40 hover:border-primary/30 rounded-xl transition-all hover:bg-primary/[0.02] group"
                 >
-                  + Add Question
-                </Button>
+                  <span className="inline-flex items-center gap-1.5">
+                    <svg
+                      width="12"
+                      height="12"
+                      viewBox="0 0 12 12"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      className="group-hover:rotate-90 transition-transform duration-200"
+                    >
+                      <line x1="6" y1="1" x2="6" y2="11" />
+                      <line x1="1" y1="6" x2="11" y2="6" />
+                    </svg>
+                    Add question
+                  </span>
+                </button>
               )}
             </div>
           )}

@@ -100,26 +100,26 @@ export function EditorLayout({
           <div className="flex items-center gap-1 px-4 pt-2">
             <button
               onClick={toggleLeft}
-              className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 px-1.5 py-1 rounded hover:bg-accent transition-colors"
+              className="text-muted-foreground/40 hover:text-foreground flex items-center gap-1.5 px-2 py-1 rounded-md hover:bg-accent/50 transition-all text-[11px]"
               title={sizes.leftCollapsed ? "Show question list" : "Hide question list"}
             >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                 <rect x="3" y="3" width="18" height="18" rx="2" />
                 <line x1="9" y1="3" x2="9" y2="21" />
               </svg>
-              {sizes.leftCollapsed ? "Questions" : ""}
+              {sizes.leftCollapsed && <span>Questions</span>}
             </button>
             <div className="flex-1" />
             <button
               onClick={toggleRight}
-              className={`text-xs flex items-center gap-1 px-1.5 py-1 rounded transition-colors ${
+              className={`flex items-center gap-1.5 px-2 py-1 rounded-md transition-all text-[11px] ${
                 sizes.rightCollapsed
-                  ? "text-muted-foreground hover:text-foreground hover:bg-accent"
-                  : "text-primary bg-primary/5"
+                  ? "text-muted-foreground/40 hover:text-foreground hover:bg-accent/50"
+                  : "text-primary/70 bg-primary/[0.04] hover:bg-primary/[0.08]"
               }`}
               title={sizes.rightCollapsed ? "Show preview" : "Hide preview"}
             >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
                 <circle cx="12" cy="12" r="3" />
               </svg>

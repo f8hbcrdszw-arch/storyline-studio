@@ -89,7 +89,7 @@ export function QuestionEditor({
   let staggerIndex = 0;
 
   return (
-    <div className="mt-4 pt-5 border-t border-border/60 space-y-7">
+    <div className="mt-2 pt-4 border-t border-border/40 space-y-6">
       {/* Question text — borderless, survey-scale */}
       <StaggerChild index={staggerIndex++}>
         <div>
