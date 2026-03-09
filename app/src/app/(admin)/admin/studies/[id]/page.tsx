@@ -44,10 +44,10 @@ export default async function StudyDetailPage({
       {/* Back link */}
       <Link
         href="/admin/studies"
-        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground mb-4 animate-in fade-in duration-200"
+        className="inline-flex items-center gap-1 text-xs text-muted-foreground/60 hover:text-foreground mb-6 transition-colors animate-in fade-in duration-200"
       >
         <ArrowLeft className="w-3.5 h-3.5" />
-        Back to studies
+        Studies
       </Link>
 
       {/* Header + metadata */}
@@ -118,44 +118,69 @@ export default async function StudyDetailPage({
       <div className="animate-in fade-in slide-in-from-bottom-1 duration-300 delay-200">
         {study.questions.length > 0 ? (
           <div className="mt-8">
-            <p className="section-label mb-3">Questions</p>
-            <div className="border-t border-border">
-              {study.questions.map((q, i) => (
-                <Link
-                  key={q.id}
-                  href={`/admin/studies/${id}/edit?q=${q.id}`}
-                  className="group flex items-center gap-3 border-b border-border py-2.5 px-2 hover:bg-accent/30 -mx-1 rounded-md"
-                >
-                  <span className="text-xs text-muted-foreground w-5 text-right tabular-nums">
-                    {i + 1}
-                  </span>
-                  <span className="flex-1 text-sm font-medium text-foreground group-hover:text-primary truncate">
-                    {q.title}
-                  </span>
-                  <span className="text-xs text-muted-foreground shrink-0">
-                    {TYPE_LABELS[q.type] || titleCase(q.type)}
-                  </span>
-                  <span className="text-xs text-muted-foreground shrink-0 w-20 text-right">
-                    {titleCase(q.phase)}
-                  </span>
-                  <ChevronRight className="w-4 h-4 text-muted-foreground opacity-0 -translate-x-1 group-hover:opacity-60 group-hover:translate-x-0 transition-all duration-150" />
-                </Link>
-              ))}
+            <div className="flex items-center justify-between mb-3">
+              <p className="section-label">Questions</p>
+              <Link
+                href={`/admin/studies/${id}/edit`}
+                className="text-[11px] text-muted-foreground/50 hover:text-primary transition-colors"
+              >
+                Open editor &rarr;
+              </Link>
+            </div>
+            <div className="rounded-xl border border-border/60 bg-background overflow-hidden">
+              {study.questions.map((q, i) => {
+                const isFirst = i === 0;
+                const isLast = i === study.questions.length - 1;
+                return (
+                  <Link
+                    key={q.id}
+                    href={`/admin/studies/${id}/edit?q=${q.id}`}
+                    className={`group flex items-center gap-3 py-3 px-4 hover:bg-accent/30 transition-colors ${
+                      !isLast ? "border-b border-border/40" : ""
+                    }`}
+                  >
+                    {/* Spine node */}
+                    <div className="relative shrink-0">
+                      <div className="w-2 h-2 rounded-full border-[1.5px] border-border group-hover:border-primary/50 bg-background transition-colors" />
+                      {/* Connecting line */}
+                      {!isFirst && (
+                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 w-px h-3 bg-border/40" />
+                      )}
+                      {!isLast && (
+                        <div className="absolute top-full left-1/2 -translate-x-1/2 w-px h-3 bg-border/40" />
+                      )}
+                    </div>
+                    <span className="text-[10px] text-muted-foreground/35 w-4 text-right tabular-nums font-mono shrink-0">
+                      {i + 1}
+                    </span>
+                    <span className="flex-1 text-sm text-foreground group-hover:text-primary truncate transition-colors">
+                      {q.title}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground/40 shrink-0">
+                      {TYPE_LABELS[q.type] || titleCase(q.type)}
+                    </span>
+                    <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/20 group-hover:text-muted-foreground/50 group-hover:translate-x-0.5 transition-all duration-150 shrink-0" />
+                  </Link>
+                );
+              })}
             </div>
           </div>
         ) : (
-          <div className="rounded-xl border border-primary/10 bg-primary/[0.03] p-16 text-center mt-8">
-            <div className="mx-auto w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-4">
-              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" className="text-primary/60">
-                <path d="M10 2v16M2 10h16" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-              </svg>
+          <div className="rounded-xl border border-dashed border-border/60 p-16 text-center mt-8">
+            {/* Empty spine illustration */}
+            <div className="flex flex-col items-center gap-1.5 mb-6">
+              <div className="w-4 h-4 rounded-full border-2 border-dashed border-primary/20 flex items-center justify-center">
+                <div className="w-1 h-1 rounded-full bg-primary/15" />
+              </div>
+              <div className="w-px h-5 bg-gradient-to-b from-primary/10 to-border/15" />
+              <div className="w-3 h-3 rounded-full border-2 border-dashed border-border/20" />
             </div>
-            <p className="font-medium text-foreground">No questions yet</p>
-            <p className="text-sm text-muted-foreground mt-1 mb-4">
+            <p className="font-medium text-foreground text-sm">No questions yet</p>
+            <p className="text-xs text-muted-foreground/60 mt-1 mb-6">
               Start building your study
             </p>
             <Link href={`/admin/studies/${id}/edit`}>
-              <Button>Add Questions</Button>
+              <Button size="sm" className="rounded-lg">Open Editor</Button>
             </Link>
           </div>
         )}
