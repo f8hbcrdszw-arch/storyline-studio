@@ -343,34 +343,38 @@ export function SurveyShell({
           )}
 
           <div className="text-center">
-            <h1>{studyTitle}</h1>
-            <p className="text-sm text-muted-foreground mt-2">
+            <h1 className="!text-2xl sm:!text-3xl">{studyTitle}</h1>
+            <p className="text-sm text-muted-foreground/70 mt-3 leading-relaxed">
               Thank you for participating in this study. Your responses are
               anonymous and will be used for research purposes only.
             </p>
             {estMinutes && (
-              <p className="text-xs text-muted-foreground mt-1">
-                Estimated time: ~{estMinutes} min
+              <p className="text-xs text-muted-foreground/40 mt-2 inline-flex items-center gap-1.5">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="shrink-0">
+                  <circle cx="12" cy="12" r="10" />
+                  <polyline points="12 6 12 12 16 14" />
+                </svg>
+                ~{estMinutes} min
               </p>
             )}
           </div>
 
           {!preview && (
-            <div className="rounded-lg border border-border p-4 text-xs text-muted-foreground space-y-2">
-              <p className="font-medium text-foreground text-sm">
+            <div className="rounded-xl border border-border/50 bg-muted/20 p-5 text-xs text-muted-foreground/60 space-y-2.5">
+              <p className="font-medium text-foreground/80 text-sm">
                 Before you begin
               </p>
-              <p>
+              <p className="leading-relaxed">
                 By continuing, you consent to participate in this research study.
                 Your responses are anonymous and no personally identifiable
                 information is collected.
               </p>
-              <p>
+              <p className="leading-relaxed">
                 This survey may include video content from YouTube. By proceeding,
                 you acknowledge that YouTube&apos;s privacy policy applies when
                 viewing embedded videos.
               </p>
-              <p>
+              <p className="leading-relaxed">
                 A cookie will be stored on your device to save your progress.
               </p>
             </div>
@@ -449,10 +453,10 @@ export function SurveyShell({
 
     return (
       <SurveyLayout>
-        <div className="text-center max-w-md mx-auto space-y-4 screen-enter" role="status">
+        <div className="text-center max-w-md mx-auto space-y-5 screen-enter" role="status">
           <CompletionCheckmark />
-          <h1>{thankYouHeading}</h1>
-          <p className="text-sm text-muted-foreground">{thankYouBody}</p>
+          <h1 className="!text-2xl">{thankYouHeading}</h1>
+          <p className="text-sm text-muted-foreground/70 leading-relaxed">{thankYouBody}</p>
           {thankYouCtaLabel && thankYouCtaUrl && (
             <a
               href={thankYouCtaUrl}
@@ -492,9 +496,9 @@ export function SurveyShell({
 
         {/* Progress — aria-live announces changes to screen readers */}
         {showProgress && progressBarStyle !== "hidden" && (
-          <div className="mb-6" role="progressbar" aria-valuemin={0} aria-valuemax={totalQuestions} aria-valuenow={currentIndex + 1} aria-label={`Question ${currentIndex + 1} of ${totalQuestions}`}>
+          <div className="mb-8" role="progressbar" aria-valuemin={0} aria-valuemax={totalQuestions} aria-valuenow={currentIndex + 1} aria-label={`Question ${currentIndex + 1} of ${totalQuestions}`}>
             {progressBarStyle === "fraction" ? (
-              <div className="text-center text-xs text-muted-foreground" aria-live="polite">
+              <div className="text-center text-[11px] text-muted-foreground/40 tabular-nums" aria-live="polite">
                 {currentIndex + 1} / {totalQuestions}
               </div>
             ) : progressBarStyle === "dots" ? (
@@ -502,23 +506,23 @@ export function SurveyShell({
                 {Array.from({ length: totalQuestions }, (_, i) => (
                   <div
                     key={i}
-                    className={`w-2 h-2 rounded-full transition-colors ${
-                      i <= currentIndex ? "bg-primary" : "bg-muted"
+                    className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${
+                      i <= currentIndex ? "bg-primary scale-100" : "bg-border scale-75"
                     }`}
                   />
                 ))}
               </div>
             ) : (
               <>
-                <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                <div className="flex justify-between text-[11px] text-muted-foreground/40 mb-2 tabular-nums">
                   <span>
-                    Question {currentIndex + 1} of {totalQuestions}
+                    {currentIndex + 1} of {totalQuestions}
                   </span>
                   <span>
                     {Math.round(((currentIndex + 1) / totalQuestions) * 100)}%
                   </span>
                 </div>
-                <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                <div className="h-1 bg-muted/60 rounded-full overflow-hidden">
                   <div
                     className="h-full bg-primary rounded-full progress-bar-fill"
                     style={{
@@ -604,11 +608,11 @@ function CompletionCheckmark() {
 function SurveyLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      <div className="flex-1 flex items-center justify-center px-4 py-8">
+      <div className="flex-1 flex items-center justify-center px-4 sm:px-6 py-8 sm:py-12">
         {children}
       </div>
-      <footer className="py-4 text-center">
-        <span className="label-mono text-muted-foreground/50 inline-flex items-baseline gap-[0.35em]">
+      <footer className="py-5 text-center">
+        <span className="label-mono text-muted-foreground/30 inline-flex items-baseline gap-[0.35em]">
           Powered by
           <span className="font-display text-[11px] normal-case tracking-tight font-light">
             <span style={{ transform: "translateY(-0.04em)", display: "inline-block" }} aria-hidden="true">∴</span>{" "}Storyline
