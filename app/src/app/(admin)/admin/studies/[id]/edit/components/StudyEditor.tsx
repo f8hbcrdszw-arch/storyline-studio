@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
+import { motion, AnimatePresence } from "motion/react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { useEditorStore } from "@/stores/editor-store";
@@ -46,6 +47,7 @@ export function StudyEditor({
 
   return (
     <EditorLayout
+      saveBar={<AmbientSaveBar />}
       header={<EditorHeader study={study} isLocked={isLocked} />}
       questionList={<QuestionList isLocked={isLocked} />}
       editor={<EditorCenter study={study} isLocked={isLocked} />}
@@ -236,14 +238,36 @@ function EditorCenter({ study, isLocked }: { study: StudyData; isLocked: boolean
   return (
     <div>
       {!selectedQuestion && (
-        <div className="flex flex-col items-center justify-center py-16 text-center">
-          <p className="text-sm text-muted-foreground mb-6">
-            {questions.length === 0
-              ? "No questions yet. Add your first question below."
-              : "Select a question from the list to edit it."}
-          </p>
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ type: "spring", stiffness: 300, damping: 25, delay: 0.05 }}
+          className="flex flex-col items-center justify-center py-20 text-center"
+        >
+          {questions.length === 0 ? (
+            <>
+              {/* Empty spine node */}
+              <div className="flex flex-col items-center gap-1 mb-6">
+                <div className="w-4 h-4 rounded-full border-2 border-dashed border-primary/20" />
+                <div className="w-px h-8 bg-border/40" />
+                <div className="w-3 h-3 rounded-full border-2 border-dashed border-border/30" />
+              </div>
+              <p className="text-sm font-medium text-foreground mb-1">
+                Your survey starts here
+              </p>
+              <p className="text-xs text-muted-foreground/60 mb-6">
+                Add your first question to begin building
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="text-sm text-muted-foreground/60 mb-6">
+                Select a question from the list to edit
+              </p>
+            </>
+          )}
           {!isLocked && (
-            <div className="w-full max-w-sm">
+            <div className="w-full max-w-xs">
               {addError && (
                 <p className="text-sm text-destructive mb-2">{addError}</p>
               )}
@@ -257,14 +281,14 @@ function EditorCenter({ study, isLocked }: { study: StudyData; isLocked: boolean
                 <Button
                   variant="outline"
                   onClick={() => setShowTypeSelector(true)}
-                  className="w-full"
+                  className="w-full rounded-xl"
                 >
                   + Add Question
                 </Button>
               )}
             </div>
           )}
-        </div>
+        </motion.div>
       )}
 
       {selectedQuestion && (
@@ -309,76 +333,122 @@ function EditorCenter({ study, isLocked }: { study: StudyData; isLocked: boolean
       )}
 
       {/* Undo delete toast */}
-      {lastDeleted && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 rounded-lg border border-border bg-background px-4 py-2.5 shadow-lg animate-in fade-in slide-in-from-bottom-2 duration-200">
-          <span className="text-sm text-foreground">
-            Deleted &ldquo;{lastDeleted.question.title}&rdquo;
-          </span>
-          <button
-            onClick={undoDelete}
-            className="text-sm font-medium text-primary hover:underline"
+      <AnimatePresence>
+        {lastDeleted && (
+          <motion.div
+            initial={{ y: 40, opacity: 0, scale: 0.95 }}
+            animate={{ y: 0, opacity: 1, scale: 1 }}
+            exit={{ y: 20, opacity: 0, scale: 0.97 }}
+            transition={{ type: "spring", stiffness: 400, damping: 25 }}
+            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 rounded-xl border border-border/60 bg-background/95 backdrop-blur-sm px-4 py-3 shadow-xl"
           >
-            Undo
-          </button>
-        </div>
+            <span className="text-sm text-foreground">
+              Deleted &ldquo;{lastDeleted.question.title}&rdquo;
+            </span>
+            <button
+              onClick={undoDelete}
+              className="text-sm font-medium text-primary hover:text-primary/80 transition-colors"
+            >
+              Undo
+            </button>
+            {/* Countdown bar */}
+            <div className="absolute bottom-0 left-3 right-3 h-[2px] rounded-full overflow-hidden">
+              <motion.div
+                initial={{ scaleX: 1 }}
+                animate={{ scaleX: 0 }}
+                transition={{ duration: 5, ease: "linear" }}
+                className="h-full bg-primary/30 origin-left"
+              />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Ambient save bar — 2px line at top of viewport
+// Communicates save state through environment, not labels
+// ─────────────────────────────────────────────────────────────────────────────
+
+function AmbientSaveBar() {
+  const isDirty = useEditorStore((s) => s.isDirty);
+  const isSaving = useEditorStore((s) => s.isSaving);
+  const saveError = useEditorStore((s) => s.saveError);
+  const lastSavedAt = useEditorStore((s) => s.lastSavedAt);
+
+  // Determine bar state
+  type BarState = "idle" | "dirty" | "saving" | "saved" | "error";
+  let state: BarState = "idle";
+  if (saveError) state = "error";
+  else if (isSaving) state = "saving";
+  else if (isDirty) state = "dirty";
+  else if (lastSavedAt) state = "saved";
+
+  // Auto-clear "saved" state after 2s
+  const [showSaved, setShowSaved] = useState(false);
+  useEffect(() => {
+    if (state === "saved") {
+      setShowSaved(true);
+      const timer = setTimeout(() => setShowSaved(false), 2000);
+      return () => clearTimeout(timer);
+    }
+    if (state !== "idle") setShowSaved(false);
+  }, [state, lastSavedAt]);
+
+  const visible = state === "dirty" || state === "saving" || state === "error" || showSaved;
+
+  return (
+    <div
+      className="h-[2px] w-full shrink-0 relative overflow-hidden"
+      aria-hidden="true"
+    >
+      {/* Base bar — amber for dirty, animated sweep for saving, green for saved, red for error */}
+      <div
+        className={`absolute inset-0 transition-all duration-500 ${
+          !visible
+            ? "opacity-0"
+            : state === "error"
+            ? "opacity-100 bg-destructive"
+            : state === "saving"
+            ? "opacity-100"
+            : state === "dirty"
+            ? "opacity-60 bg-amber-400"
+            : showSaved
+            ? "opacity-100 bg-green-500"
+            : "opacity-0"
+        }`}
+      />
+
+      {/* Saving sweep animation — gradient that moves L→R */}
+      {state === "saving" && (
+        <div
+          className="absolute inset-0 bg-gradient-to-r from-transparent via-primary to-transparent animate-sweep"
+        />
       )}
     </div>
   );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Save indicator
+// Compact save indicator for the header (small text fallback)
 // ─────────────────────────────────────────────────────────────────────────────
 
 function SaveIndicator() {
-  const isDirty = useEditorStore((s) => s.isDirty);
-  const isSaving = useEditorStore((s) => s.isSaving);
   const saveError = useEditorStore((s) => s.saveError);
-  const lastSavedAt = useEditorStore((s) => s.lastSavedAt);
 
-  // Determine state for smooth transitions
-  let dotColor = "bg-transparent";
-  let label = "";
-
-  if (saveError) {
-    dotColor = "bg-destructive";
-    label = saveError;
-  } else if (isSaving) {
-    dotColor = "bg-amber-400 animate-pulse";
-    label = "Saving...";
-  } else if (isDirty) {
-    dotColor = "bg-amber-400";
-    label = "Editing...";
-  } else if (lastSavedAt) {
-    dotColor = "bg-green-500";
-    label = "Saved";
-  }
-
-  if (!label) return null;
+  // Only show text for errors — ambient bar handles the rest
+  if (!saveError) return null;
 
   return (
-    <span
-      className={`text-xs flex items-center gap-1.5 transition-all duration-300 ${
-        saveError ? "text-destructive" : "text-muted-foreground"
-      }`}
+    <button
+      onClick={() => {
+        // TODO: retry save
+      }}
+      className="text-[11px] text-destructive hover:underline"
     >
-      <span className={`w-1.5 h-1.5 rounded-full transition-colors duration-300 ${dotColor}`} />
-      <span className="transition-opacity duration-200">{label}</span>
-      {lastSavedAt && !isDirty && !isSaving && !saveError && (
-        <svg
-          width="12"
-          height="12"
-          viewBox="0 0 12 12"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          className="text-green-500 animate-in fade-in zoom-in duration-300"
-        >
-          <polyline points="2,6 5,9 10,3" />
-        </svg>
-      )}
-    </span>
+      Save failed — retry
+    </button>
   );
 }

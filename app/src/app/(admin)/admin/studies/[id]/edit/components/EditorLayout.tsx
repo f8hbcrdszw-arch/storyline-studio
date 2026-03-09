@@ -35,11 +35,13 @@ function saveSizes(sizes: PanelSizes) {
 }
 
 export function EditorLayout({
+  saveBar,
   questionList,
   editor,
   preview,
   header,
 }: {
+  saveBar?: ReactNode;
   questionList: ReactNode;
   editor: ReactNode;
   preview: ReactNode;
@@ -65,8 +67,11 @@ export function EditorLayout({
 
   return (
     <div className="flex flex-col h-[calc(100vh-4rem)]">
+      {/* Ambient save bar — 2px line at very top */}
+      {saveBar}
+
       {/* Header bar */}
-      <div className="shrink-0 border-b border-border px-4 py-3">
+      <div className="shrink-0 border-b border-border/60 px-5 py-3">
         {header}
       </div>
 
@@ -76,7 +81,7 @@ export function EditorLayout({
         {!sizes.leftCollapsed && (
           <>
             <div
-              className="shrink-0 overflow-y-auto border-r border-border bg-muted/30"
+              className="shrink-0 overflow-y-auto border-r border-border/40 bg-muted/20"
               style={{ width: sizes.left }}
             >
               <div className="p-3">{questionList}</div>
@@ -134,7 +139,7 @@ export function EditorLayout({
               }}
             />
             <div
-              className="shrink-0 overflow-y-auto border-l border-border bg-muted/20"
+              className="shrink-0 overflow-y-auto border-l border-border/40 bg-muted/10"
               style={{ width: sizes.right }}
             >
               {preview}

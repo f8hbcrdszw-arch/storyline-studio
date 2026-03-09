@@ -136,22 +136,14 @@
     @apply border-border outline-ring/50;
   }
 
-  /* Smooth transitions on interactive properties */
-  *,
-  *::before,
-  *::after {
-    transition-property: color, background-color, border-color, opacity, box-shadow, transform;
-    transition-duration: 150ms;
-    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-  }
-
-  /* Disable transitions for reduced-motion preference */
+  /* Disable animations for reduced-motion preference */
   @media (prefers-reduced-motion: reduce) {
     *,
     *::before,
     *::after {
       transition-duration: 0ms !important;
       animation-duration: 0ms !important;
+      animation-play-state: paused !important;
     }
   }
 
@@ -173,14 +165,22 @@
     @apply text-base font-medium text-foreground;
   }
 
-  /* ── Focus rings on all form elements ───────────────── */
-  input:not([type="range"]),
+  /* ── Focus rings — keyboard only (focus-visible) ────── */
+  input:not([type="range"]):not([type="checkbox"]):not([type="radio"]),
   select,
   textarea {
     @apply outline-none;
     &:focus-visible {
-      box-shadow: 0 0 0 2px var(--background), 0 0 0 4px var(--ring);
+      box-shadow: 0 0 0 2px var(--background), 0 0 0 4px color-mix(in srgb, var(--ring) 25%, transparent);
     }
+  }
+
+  /* Buttons and interactive elements */
+  button:focus-visible,
+  [role="button"]:focus-visible,
+  a:focus-visible {
+    outline: 2px solid color-mix(in srgb, var(--ring) 40%, transparent);
+    outline-offset: 2px;
   }
 
   /* ── Branded scrollbar (WebKit) ─────────────────────── */
@@ -336,6 +336,15 @@
 }
 .screen-enter {
   animation: screenFadeIn 0.35s var(--ease-spring);
+}
+
+/* ── Ambient save bar sweep ─────────────────────────────── */
+@keyframes sweep {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+.animate-sweep {
+  animation: sweep 1.2s ease-in-out infinite;
 }
 
 /* ── Status dot indicators ──────────────────────────────── */

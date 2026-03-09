@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useRef, useState, useMemo } from "react";
 import {
   DndContext,
   closestCenter,
@@ -20,9 +20,17 @@ import { CSS } from "@dnd-kit/utilities";
 import { useEditorStore } from "@/stores/editor-store";
 import { TYPE_LABELS, PHASE_COLORS } from "@/lib/constants/editor";
 
+// Phase band background colors (subtle environmental shift)
+const PHASE_BANDS: Record<string, string> = {
+  SCREENING: "bg-amber-50/40",
+  PRE_BALLOT: "bg-transparent",
+  STIMULUS: "bg-primary/[0.03]",
+  POST_BALLOT: "bg-transparent",
+};
+
 /**
- * Compact question list for the left panel of the split-pane editor.
- * Shows question titles with type/phase badges. Click to select.
+ * Question list sidebar — the survey spine.
+ * Shows questions as nodes on a vertical path with phase grouping.
  */
 export function QuestionList({ isLocked }: { isLocked: boolean }) {
   const questions = useEditorStore((s) => s.questions);
@@ -88,15 +96,34 @@ export function QuestionList({ isLocked }: { isLocked: boolean }) {
       )
     : questions;
 
+  // Group by phase for headers
+  const phaseBreaks = useMemo(() => {
+    const breaks = new Set<string>();
+    let lastPhase = "";
+    for (const q of filtered) {
+      if (q.phase !== lastPhase) {
+        breaks.add(q.id);
+        lastPhase = q.phase;
+      }
+    }
+    return breaks;
+  }, [filtered]);
+
   return (
     <div>
-      <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-2">
-        Questions ({questions.length})
-      </p>
+      {/* Header */}
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-[10px] font-medium text-muted-foreground/60 uppercase tracking-wider">
+          Questions
+        </span>
+        <span className="text-[10px] tabular-nums text-muted-foreground/40">
+          {questions.length}
+        </span>
+      </div>
 
       {/* Search — only show with 5+ questions */}
       {questions.length >= 5 && (
-        <div className="relative mb-2">
+        <div className="relative mb-3">
           <svg
             width="12"
             height="12"
@@ -105,7 +132,7 @@ export function QuestionList({ isLocked }: { isLocked: boolean }) {
             stroke="currentColor"
             strokeWidth="2"
             strokeLinecap="round"
-            className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground/40"
+            className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground/30"
           >
             <circle cx="11" cy="11" r="8" />
             <line x1="21" y1="21" x2="16.65" y2="16.65" />
@@ -114,8 +141,8 @@ export function QuestionList({ isLocked }: { isLocked: boolean }) {
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Filter questions..."
-            className="w-full pl-7 pr-2 py-1.5 text-xs rounded-md border border-border bg-background placeholder:text-muted-foreground/40 outline-none focus:border-primary/40 transition-colors"
+            placeholder="Filter..."
+            className="w-full pl-7 pr-2 py-1.5 text-xs rounded-lg border border-border/60 bg-background/80 placeholder:text-muted-foreground/30 outline-none focus:border-primary/30 transition-colors"
           />
         </div>
       )}
@@ -129,34 +156,60 @@ export function QuestionList({ isLocked }: { isLocked: boolean }) {
           items={filtered.map((q) => q.id)}
           strategy={verticalListSortingStrategy}
         >
-          <div className="space-y-px">
-            {filtered.map((q) => (
-              <QuestionListItem
-                key={q.id}
-                id={q.id}
-                title={q.title}
-                type={q.type}
-                phase={q.phase}
-                order={q.order}
-                isSelected={selectedQuestionId === q.id}
-                canDrag={canDrag}
-                onSelect={() => selectQuestion(selectedQuestionId === q.id ? null : q.id)}
+          {/* The spine */}
+          <div className="relative">
+            {/* Vertical spine line */}
+            {filtered.length > 1 && (
+              <div
+                className="absolute left-[15px] top-4 bottom-4 w-px bg-border/50"
+                aria-hidden="true"
               />
-            ))}
+            )}
+
+            <div className="space-y-0.5">
+              {filtered.map((q, i) => (
+                <div key={q.id}>
+                  {/* Phase header — when phase changes */}
+                  {phaseBreaks.has(q.id) && (
+                    <div className={`px-2 py-1.5 -mx-1 rounded-md ${PHASE_BANDS[q.phase] || ""} ${i > 0 ? "mt-2" : ""}`}>
+                      <span className="text-[9px] font-medium text-muted-foreground/50 uppercase tracking-wider pl-6">
+                        {q.phase.replace(/_/g, " ")}
+                      </span>
+                    </div>
+                  )}
+                  <QuestionListItem
+                    id={q.id}
+                    title={q.title}
+                    type={q.type}
+                    phase={q.phase}
+                    order={q.order}
+                    isSelected={selectedQuestionId === q.id}
+                    canDrag={canDrag}
+                    onSelect={() => selectQuestion(selectedQuestionId === q.id ? null : q.id)}
+                  />
+                </div>
+              ))}
+            </div>
           </div>
         </SortableContext>
       </DndContext>
 
       {filtered.length === 0 && searchQuery && (
-        <p className="text-xs text-muted-foreground text-center py-4">
-          No questions match &ldquo;{searchQuery}&rdquo;
+        <p className="text-[11px] text-muted-foreground/50 text-center py-4">
+          No match for &ldquo;{searchQuery}&rdquo;
         </p>
       )}
 
       {questions.length === 0 && (
-        <p className="text-xs text-muted-foreground text-center py-6">
-          No questions yet
-        </p>
+        <div className="text-center py-8">
+          {/* Empty spine — single node */}
+          <div className="flex flex-col items-center gap-2">
+            <div className="w-3 h-3 rounded-full border-2 border-dashed border-muted-foreground/20" />
+            <p className="text-[11px] text-muted-foreground/40 italic">
+              Your survey starts here
+            </p>
+          </div>
+        </div>
       )}
     </div>
   );
@@ -168,7 +221,6 @@ function QuestionListItem({
   id,
   title,
   type,
-  phase,
   order,
   isSelected,
   canDrag,
@@ -203,34 +255,47 @@ function QuestionListItem({
       ref={setNodeRef}
       style={style}
       onClick={onSelect}
-      className={`w-full text-left px-2.5 py-2 rounded-md text-xs transition-all group ${
-        isSelected
-          ? "bg-primary/10 text-foreground ring-1 ring-primary/20"
-          : "hover:bg-accent/50 text-muted-foreground hover:text-foreground"
+      className={`w-full text-left pl-2 pr-2.5 py-2 rounded-lg text-xs transition-all duration-100 group relative ${
+        isDragging
+          ? "bg-primary/10 shadow-md z-10 scale-[1.02]"
+          : isSelected
+          ? "bg-primary/8 text-foreground"
+          : "hover:bg-accent/40 text-muted-foreground hover:text-foreground"
       }`}
       {...(canDrag ? { ...attributes, ...listeners } : {})}
     >
-      <div className="flex items-start gap-1.5">
-        <span className="text-[10px] tabular-nums text-muted-foreground mt-0.5 shrink-0">
-          {order + 1}
-        </span>
-        <div className="min-w-0">
-          <p className={`truncate font-medium ${isSelected ? "text-foreground" : ""}`}>
+      {/* Selected accent bar */}
+      {isSelected && (
+        <div className="absolute left-0 top-1.5 bottom-1.5 w-[2px] rounded-full bg-primary" />
+      )}
+
+      <div className="flex items-start gap-2">
+        {/* Spine node */}
+        <div className="mt-1 shrink-0 relative">
+          <div
+            className={`w-[10px] h-[10px] rounded-full border-2 transition-colors duration-150 ${
+              isSelected
+                ? "border-primary bg-primary/20"
+                : "border-border bg-background group-hover:border-muted-foreground/40"
+            }`}
+          />
+        </div>
+
+        <div className="min-w-0 flex-1">
+          <p className={`truncate text-[12px] leading-snug ${
+            isSelected ? "font-medium text-foreground" : "font-normal"
+          }`}>
             {title || "Untitled"}
           </p>
-          <div className="flex items-center gap-1.5 mt-0.5">
-            <span
-              className={`rounded-full px-1.5 py-px text-[9px] font-medium ${
-                PHASE_COLORS[phase] || "bg-gray-100 text-gray-800"
-              }`}
-            >
-              {phase.replace(/_/g, " ")}
-            </span>
-            <span className="text-[10px] text-muted-foreground">
-              {TYPE_LABELS[type] || type}
-            </span>
-          </div>
+          <span className="text-[10px] text-muted-foreground/50 mt-0.5 block">
+            {TYPE_LABELS[type] || type}
+          </span>
         </div>
+
+        {/* Order number */}
+        <span className="text-[9px] tabular-nums text-muted-foreground/30 mt-0.5 shrink-0">
+          {order + 1}
+        </span>
       </div>
     </button>
   );
