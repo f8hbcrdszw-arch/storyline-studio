@@ -47,14 +47,14 @@ export default async function StudiesPage() {
         return (
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6 animate-in fade-in slide-in-from-bottom-1 duration-300 delay-75">
             {[
-              { label: "Active", value: active, accent: "text-emerald-500" },
-              { label: "Closed", value: closed, accent: "text-amber-500" },
-              { label: "Total Studies", value: studies.length, accent: "text-foreground" },
+              { label: "Active", value: active, accent: "text-emerald-600" },
+              { label: "Closed", value: closed, accent: "text-amber-600" },
+              { label: "Total", value: studies.length, accent: "text-foreground" },
               { label: "Responses", value: totalResponses, accent: "text-foreground" },
             ].map((stat) => (
-              <div key={stat.label} className="rounded-lg border border-border bg-card px-4 py-3">
-                <p className="text-xs text-muted-foreground">{stat.label}</p>
-                <p className={`text-xl font-semibold mt-0.5 ${stat.accent}`}>{stat.value}</p>
+              <div key={stat.label} className="rounded-xl border border-border/50 bg-card/80 px-4 py-3">
+                <p className="text-[10px] text-muted-foreground/50 uppercase tracking-wider">{stat.label}</p>
+                <p className={`text-lg font-semibold mt-0.5 tabular-nums ${stat.accent}`}>{stat.value}</p>
               </div>
             ))}
           </div>
@@ -62,20 +62,21 @@ export default async function StudiesPage() {
       })()}
 
       {studies.length === 0 ? (
-        <div className="rounded-xl border border-primary/10 bg-primary/[0.03] p-16 text-center animate-in fade-in slide-in-from-bottom-2 duration-300 delay-100">
-          <div className="mx-auto w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-4">
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" className="text-primary/60">
-              <rect x="2" y="2" width="16" height="16" rx="3" stroke="currentColor" strokeWidth="1.5" />
-              <path d="M10 6v8M6 10h8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-            </svg>
+        <div className="rounded-xl border border-dashed border-border/50 p-20 text-center animate-in fade-in slide-in-from-bottom-2 duration-300 delay-100">
+          <div className="flex flex-col items-center gap-1.5 mb-6">
+            <div className="w-10 h-10 rounded-xl border-2 border-dashed border-primary/15 flex items-center justify-center">
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="none" className="text-primary/30">
+                <path d="M9 3v12M3 9h12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+              </svg>
+            </div>
           </div>
-          <p className="font-medium text-foreground">No studies yet</p>
-          <p className="text-sm text-muted-foreground mt-1 mb-4">
+          <p className="font-medium text-foreground text-sm">No studies yet</p>
+          <p className="text-xs text-muted-foreground/60 mt-1 mb-6">
             Create your first study to get started
           </p>
           <Link
             href="/admin/studies/new"
-            className="inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+            className="inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
           >
             Create Study
           </Link>

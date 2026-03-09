@@ -210,13 +210,14 @@ export function StudyList({ studies }: { studies: StudyItem[] }) {
       )}
 
       {/* Active studies */}
-      <div className="border-t border-border">
-        {activeStudies.map((study) => (
+      <div className="rounded-xl border border-border/60 bg-background overflow-hidden">
+        {activeStudies.map((study, i) => (
           <StudyRow
             key={study.id}
             study={study}
             checked={selected.has(study.id)}
             onToggle={() => toggle(study.id)}
+            isLast={i === activeStudies.length - 1}
           />
         ))}
       </div>
@@ -239,13 +240,14 @@ export function StudyList({ studies }: { studies: StudyItem[] }) {
             </span>
           </button>
           {showArchived && (
-            <div className="mt-2 border-t border-border opacity-60 animate-in fade-in slide-in-from-top-1 duration-200">
-              {archivedStudies.map((study) => (
+            <div className="mt-2 rounded-xl border border-border/40 bg-background overflow-hidden opacity-60 animate-in fade-in slide-in-from-top-1 duration-200">
+              {archivedStudies.map((study, i) => (
                 <StudyRow
                   key={study.id}
                   study={study}
                   checked={selected.has(study.id)}
                   onToggle={() => toggle(study.id)}
+                  isLast={i === archivedStudies.length - 1}
                 />
               ))}
             </div>
@@ -270,13 +272,17 @@ function StudyRow({
   study,
   checked,
   onToggle,
+  isLast,
 }: {
   study: StudyItem;
   checked: boolean;
   onToggle: () => void;
+  isLast: boolean;
 }) {
   return (
-    <div className="group flex items-center border-b border-border py-3 px-2 hover:bg-accent/30 -mx-1 rounded-md">
+    <div className={`group flex items-center py-3 px-4 hover:bg-accent/30 transition-colors ${
+      !isLast ? "border-b border-border/40" : ""
+    }`}>
       <label
         className="flex items-center shrink-0 pr-3 cursor-pointer"
         onClick={(e) => e.stopPropagation()}
@@ -293,19 +299,22 @@ function StudyRow({
         className="flex items-center justify-between flex-1 min-w-0"
       >
         <div className="min-w-0">
-          <p className="text-sm font-medium text-foreground group-hover:text-primary truncate">
+          <p className="text-sm font-medium text-foreground group-hover:text-primary truncate transition-colors">
             {study.title}
           </p>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            {study._count.questions}{" "}
-            {study._count.questions === 1 ? "question" : "questions"} ·{" "}
-            {study._count.responses}{" "}
-            {study._count.responses === 1 ? "response" : "responses"}
-          </p>
+          <div className="flex items-center gap-1.5 mt-0.5">
+            <span className="text-[10px] text-muted-foreground/40 tabular-nums">
+              {study._count.questions} {study._count.questions === 1 ? "question" : "questions"}
+            </span>
+            <span className="text-muted-foreground/20">&middot;</span>
+            <span className="text-[10px] text-muted-foreground/40 tabular-nums">
+              {study._count.responses} {study._count.responses === 1 ? "response" : "responses"}
+            </span>
+          </div>
         </div>
         <div className="flex items-center gap-3 shrink-0 ml-4">
           <StatusDot status={study.status} />
-          <ChevronRight className="w-4 h-4 text-muted-foreground opacity-0 -translate-x-1 group-hover:opacity-60 group-hover:translate-x-0 transition-all duration-150" />
+          <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/20 group-hover:text-muted-foreground/50 group-hover:translate-x-0.5 transition-all duration-150 shrink-0" />
         </div>
       </Link>
     </div>
