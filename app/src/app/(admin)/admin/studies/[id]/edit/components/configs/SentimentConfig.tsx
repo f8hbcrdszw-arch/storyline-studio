@@ -23,7 +23,7 @@ export function SentimentConfig({ config, onUpdate, isLocked }: ConfigProps) {
             }}
             disabled={isLocked}
             placeholder="Attribute name"
-            className="flex-1 rounded-md border border-input bg-background px-2 py-1 text-sm"
+            className="flex-1 rounded-md border border-input bg-background px-2 py-1 text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-primary/15 focus:border-primary/50"
           />
           {!isLocked && attributes.length > 1 && (
             <button

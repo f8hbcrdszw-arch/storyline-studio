@@ -21,7 +21,7 @@ export function MatrixConfig({ config, onUpdate, isLocked }: ConfigProps) {
                 onUpdate("rows", updated);
               }}
               disabled={isLocked}
-              className="flex-1 rounded border border-input bg-background px-2 py-1 text-xs"
+              className="flex-1 rounded border border-input bg-background px-2 py-1 text-xs transition-colors focus:outline-none focus:ring-2 focus:ring-primary/15 focus:border-primary/50"
             />
             {!isLocked && (
               <button
@@ -59,7 +59,7 @@ export function MatrixConfig({ config, onUpdate, isLocked }: ConfigProps) {
                 onUpdate("columns", updated);
               }}
               disabled={isLocked}
-              className="flex-1 rounded border border-input bg-background px-2 py-1 text-xs"
+              className="flex-1 rounded border border-input bg-background px-2 py-1 text-xs transition-colors focus:outline-none focus:ring-2 focus:ring-primary/15 focus:border-primary/50"
             />
             {!isLocked && (
               <button

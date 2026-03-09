@@ -13,7 +13,7 @@ export function LikertConfig({ config, onUpdate, isLocked }: ConfigProps) {
             value={(config.likertScale as number) || 7}
             onChange={(e) => onUpdate("likertScale", Number(e.target.value))}
             disabled={isLocked}
-            className="ml-1 rounded border border-input bg-background px-1 py-0.5 text-sm"
+            className="ml-1 rounded border border-input bg-background px-1 py-0.5 text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-primary/15 focus:border-primary/50"
           >
             {[3, 4, 5, 6, 7, 8, 9, 10, 11].map((n) => (
               <option key={n} value={n}>
@@ -35,7 +35,7 @@ export function LikertConfig({ config, onUpdate, isLocked }: ConfigProps) {
           }
           disabled={isLocked}
           placeholder="Low label"
-          className="w-32 rounded-md border border-input bg-background px-2 py-1 text-xs"
+          className="w-32 rounded-md border border-input bg-background px-2 py-1 text-xs transition-colors focus:outline-none focus:ring-2 focus:ring-primary/15 focus:border-primary/50"
         />
         <input
           type="text"
@@ -50,7 +50,7 @@ export function LikertConfig({ config, onUpdate, isLocked }: ConfigProps) {
           }
           disabled={isLocked}
           placeholder="High label"
-          className="w-32 rounded-md border border-input bg-background px-2 py-1 text-xs"
+          className="w-32 rounded-md border border-input bg-background px-2 py-1 text-xs transition-colors focus:outline-none focus:ring-2 focus:ring-primary/15 focus:border-primary/50"
         />
       </div>
     </div>

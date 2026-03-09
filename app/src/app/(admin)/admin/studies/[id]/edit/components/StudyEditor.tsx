@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { useEditorStore } from "@/stores/editor-store";
@@ -102,6 +102,38 @@ function EditorCenter({ study, isLocked }: { study: StudyData; isLocked: boolean
   const [addError, setAddError] = useState<string | null>(null);
 
   const selectedQuestion = questions.find((q) => q.id === selectedQuestionId);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      // Don't intercept when typing in inputs
+      const target = e.target as HTMLElement;
+      if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.tagName === "SELECT") return;
+      if (target.isContentEditable) return;
+
+      // Arrow up/down — navigate questions
+      if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+        e.preventDefault();
+        const currentIndex = questions.findIndex((q) => q.id === selectedQuestionId);
+        if (e.key === "ArrowUp") {
+          const prevIndex = currentIndex <= 0 ? questions.length - 1 : currentIndex - 1;
+          selectQuestion(questions[prevIndex]?.id ?? null);
+        } else {
+          const nextIndex = currentIndex >= questions.length - 1 ? 0 : currentIndex + 1;
+          selectQuestion(questions[nextIndex]?.id ?? null);
+        }
+      }
+
+      // Escape — deselect question
+      if (e.key === "Escape" && selectedQuestionId) {
+        e.preventDefault();
+        selectQuestion(null);
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [questions, selectedQuestionId, selectQuestion]);
 
   const handleAddQuestion = useCallback(
     async (type: string, phase: string) => {
@@ -304,41 +336,49 @@ function SaveIndicator() {
   const saveError = useEditorStore((s) => s.saveError);
   const lastSavedAt = useEditorStore((s) => s.lastSavedAt);
 
+  // Determine state for smooth transitions
+  let dotColor = "bg-transparent";
+  let label = "";
+
   if (saveError) {
-    return (
-      <span className="text-xs text-destructive flex items-center gap-1">
-        <span className="w-1.5 h-1.5 rounded-full bg-destructive" />
-        {saveError}
-      </span>
-    );
+    dotColor = "bg-destructive";
+    label = saveError;
+  } else if (isSaving) {
+    dotColor = "bg-amber-400 animate-pulse";
+    label = "Saving...";
+  } else if (isDirty) {
+    dotColor = "bg-amber-400";
+    label = "Editing...";
+  } else if (lastSavedAt) {
+    dotColor = "bg-green-500";
+    label = "Saved";
   }
 
-  if (isSaving) {
-    return (
-      <span className="text-xs text-muted-foreground flex items-center gap-1">
-        <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
-        Saving...
-      </span>
-    );
-  }
+  if (!label) return null;
 
-  if (isDirty) {
-    return (
-      <span className="text-xs text-muted-foreground flex items-center gap-1">
-        <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
-        Unsaved changes
-      </span>
-    );
-  }
-
-  if (lastSavedAt) {
-    return (
-      <span className="text-xs text-muted-foreground flex items-center gap-1">
-        <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
-        Saved
-      </span>
-    );
-  }
-
-  return null;
+  return (
+    <span
+      className={`text-xs flex items-center gap-1.5 transition-all duration-300 ${
+        saveError ? "text-destructive" : "text-muted-foreground"
+      }`}
+    >
+      <span className={`w-1.5 h-1.5 rounded-full transition-colors duration-300 ${dotColor}`} />
+      <span className="transition-opacity duration-200">{label}</span>
+      {lastSavedAt && !isDirty && !isSaving && !saveError && (
+        <svg
+          width="12"
+          height="12"
+          viewBox="0 0 12 12"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="text-green-500 animate-in fade-in zoom-in duration-300"
+        >
+          <polyline points="2,6 5,9 10,3" />
+        </svg>
+      )}
+    </span>
+  );
 }

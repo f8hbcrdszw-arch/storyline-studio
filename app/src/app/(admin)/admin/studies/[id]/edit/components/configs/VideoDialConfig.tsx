@@ -15,7 +15,7 @@ export function VideoDialConfig({ config, onUpdate, isLocked }: ConfigProps) {
           value={mode}
           onChange={(e) => onUpdate("mode", e.target.value)}
           disabled={isLocked}
-          className="rounded-md border border-input bg-background px-2 py-1.5 text-sm"
+          className="rounded-md border border-input bg-background px-2 py-1.5 text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-primary/15 focus:border-primary/50"
         >
           <option value="intensity">Intensity (0-100)</option>
           <option value="sentiment">Sentiment (Negative-Positive)</option>
@@ -38,7 +38,7 @@ export function VideoDialConfig({ config, onUpdate, isLocked }: ConfigProps) {
               }}
               disabled={isLocked}
               placeholder="Button label"
-              className="flex-1 rounded border border-input bg-background px-2 py-1 text-xs"
+              className="flex-1 rounded border border-input bg-background px-2 py-1 text-xs transition-colors focus:outline-none focus:ring-2 focus:ring-primary/15 focus:border-primary/50"
             />
             {!isLocked && (
               <button
@@ -91,7 +91,7 @@ export function VideoDialConfig({ config, onUpdate, isLocked }: ConfigProps) {
                 onChange={(e) => onUpdate("annotationPrompt", e.target.value)}
                 disabled={isLocked}
                 placeholder="Any additional thoughts? (optional)"
-                className="w-full rounded-md border border-input bg-background px-2 py-1 text-sm"
+                className="w-full rounded-md border border-input bg-background px-2 py-1 text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-primary/15 focus:border-primary/50"
               />
               <input
                 type="text"
@@ -99,7 +99,7 @@ export function VideoDialConfig({ config, onUpdate, isLocked }: ConfigProps) {
                 onChange={(e) => onUpdate("annotationPlaceholder", e.target.value)}
                 disabled={isLocked}
                 placeholder="Share your thoughts about the video..."
-                className="w-full rounded-md border border-input bg-background px-2 py-1 text-xs text-muted-foreground"
+                className="w-full rounded-md border border-input bg-background px-2 py-1 text-xs text-muted-foreground transition-colors focus:outline-none focus:ring-2 focus:ring-primary/15 focus:border-primary/50"
               />
             </>
           )}

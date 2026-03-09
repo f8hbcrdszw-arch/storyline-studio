@@ -11,19 +11,7 @@ import { StudyThemeSection } from "./components/StudyThemeSection";
 import { DEFAULT_THEME, type SurveyTheme } from "@/lib/types/json-fields";
 import { ArrowLeft, Pencil, BarChart3, Eye, ChevronRight } from "lucide-react";
 
-const TYPE_LABELS: Record<string, string> = {
-  VIDEO_DIAL: "Video Dial",
-  MULTIPLE_CHOICE: "Multiple Choice",
-  LIKERT: "Likert Scale",
-  OPEN_TEXT: "Open Text",
-  NUMERIC: "Numeric",
-  AB_TEST: "A/B Test",
-  RANKING: "Ranking",
-  MATRIX: "Matrix",
-  MULTI_ITEM_RATING: "Multi-Item Rating",
-  SENTIMENT: "Sentiment",
-  REACTION: "Reaction",
-};
+import { TYPE_LABELS } from "@/lib/constants/editor";
 
 export default async function StudyDetailPage({
   params,

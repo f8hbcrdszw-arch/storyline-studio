@@ -36,26 +36,7 @@ const DEVICE_ICONS: Record<DeviceMode, React.ReactNode> = {
   ),
 };
 
-const PHASE_LABELS: Record<string, string> = {
-  SCREENING: "Screening",
-  PRE_BALLOT: "Pre-Ballot",
-  STIMULUS: "Stimulus",
-  POST_BALLOT: "Post-Ballot",
-};
-
-const TYPE_LABELS: Record<string, string> = {
-  VIDEO_DIAL: "Video Dial",
-  MULTIPLE_CHOICE: "Multiple Choice",
-  LIKERT: "Likert",
-  OPEN_TEXT: "Open Text",
-  NUMERIC: "Numeric",
-  AB_TEST: "A/B Test",
-  RANKING: "Ranking",
-  MATRIX: "Matrix",
-  MULTI_ITEM_RATING: "Multi-Item Rating",
-  SENTIMENT: "Sentiment",
-  REACTION: "Reaction",
-};
+import { TYPE_LABELS, PHASE_LABELS } from "@/lib/constants/editor";
 
 export function PreviewShell({
   studyId,

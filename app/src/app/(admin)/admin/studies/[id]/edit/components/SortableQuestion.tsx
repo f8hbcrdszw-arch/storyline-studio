@@ -3,32 +3,14 @@
 import { useState } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { motion, AnimatePresence } from "motion/react";
 import type { QuestionData } from "./StudyEditor";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { QuestionEditor } from "./QuestionEditor";
 import { QuestionPreviewModal } from "./QuestionPreviewModal";
-
-const TYPE_LABELS: Record<string, string> = {
-  VIDEO_DIAL: "Video Dial",
-  MULTIPLE_CHOICE: "Multiple Choice",
-  LIKERT: "Likert Scale",
-  OPEN_TEXT: "Open Text",
-  NUMERIC: "Numeric",
-  AB_TEST: "A/B Test",
-  RANKING: "Ranking",
-  MATRIX: "Matrix",
-  MULTI_ITEM_RATING: "Multi-Item Rating",
-  SENTIMENT: "Sentiment",
-  REACTION: "Reaction",
-};
-
-const PHASE_COLORS: Record<string, string> = {
-  SCREENING: "bg-orange-100 text-orange-800",
-  PRE_BALLOT: "bg-blue-100 text-blue-800",
-  STIMULUS: "bg-purple-100 text-purple-800",
-  POST_BALLOT: "bg-green-100 text-green-800",
-};
+import { TYPE_LABELS, PHASE_COLORS } from "@/lib/constants/editor";
+import { springForIntent, staggerDelay } from "@/lib/motion";
 
 export function SortableQuestion({
   question,
@@ -51,6 +33,10 @@ export function SortableQuestion({
 }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
+
+  // Disable drag when selected (editing) or when only 1 question
+  const canDrag = !isLocked && !isSelected && allQuestions.length > 1;
+
   const {
     attributes,
     listeners,
@@ -58,7 +44,7 @@ export function SortableQuestion({
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: question.id, disabled: isLocked });
+  } = useSortable({ id: question.id, disabled: !canDrag });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -70,27 +56,29 @@ export function SortableQuestion({
     <div
       ref={setNodeRef}
       style={style}
-      className={`rounded-lg border p-3 transition-colors ${
-        isSelected
-          ? "border-primary bg-primary/5"
-          : "border-border hover:border-primary/30"
+      className={`rounded-xl border transition-[border-color,box-shadow] duration-150 ${
+        isDragging
+          ? "border-primary/40 shadow-lg scale-[1.01]"
+          : isSelected
+          ? "border-primary/30 bg-background shadow-md ring-1 ring-primary/8"
+          : "border-border hover:border-primary/20 bg-background shadow-sm"
       }`}
     >
-      <div className="flex items-center gap-3">
-        {/* Drag handle */}
-        {!isLocked && (
+      {/* Header row */}
+      <div
+        className={`flex items-center gap-3 px-4 py-3 ${isSelected ? "" : "cursor-pointer"}`}
+        onClick={isSelected ? undefined : onSelect}
+      >
+        {/* Drag handle — only when draggable */}
+        {canDrag ? (
           <button
             {...attributes}
             {...listeners}
-            className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground"
+            onClick={(e) => e.stopPropagation()}
+            className="cursor-grab active:cursor-grabbing text-muted-foreground/25 hover:text-muted-foreground/60 transition-colors shrink-0 -ml-1"
             aria-label="Drag to reorder"
           >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 16 16"
-              fill="currentColor"
-            >
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
               <circle cx="5" cy="3" r="1.5" />
               <circle cx="11" cy="3" r="1.5" />
               <circle cx="5" cy="8" r="1.5" />
@@ -99,19 +87,23 @@ export function SortableQuestion({
               <circle cx="11" cy="13" r="1.5" />
             </svg>
           </button>
+        ) : (
+          /* Spacer to keep alignment when handle is hidden */
+          !isSelected && <div className="w-[14px] shrink-0 -ml-1" />
         )}
 
         {/* Order number */}
-        <span className="text-xs text-muted-foreground w-5 text-right font-mono">
+        <span className="text-xs text-muted-foreground/50 w-5 text-right font-mono shrink-0 tabular-nums">
           {question.order + 1}
         </span>
 
         {/* Question info */}
-        <button
-          onClick={onSelect}
-          className="flex-1 text-left"
-        >
-          <p className="text-sm font-medium text-foreground">{question.title}</p>
+        <div className="flex-1 min-w-0">
+          <p className={`text-sm font-medium truncate transition-colors duration-150 ${
+            isSelected ? "text-primary" : "text-foreground"
+          }`}>
+            {question.title || "Untitled question"}
+          </p>
           <div className="flex items-center gap-2 mt-1">
             <span
               className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
@@ -120,7 +112,7 @@ export function SortableQuestion({
             >
               {question.phase.replace(/_/g, " ")}
             </span>
-            <span className="text-xs text-muted-foreground">
+            <span className="text-[11px] text-muted-foreground">
               {TYPE_LABELS[question.type] || question.type}
             </span>
             {question.isScreening && (
@@ -129,13 +121,13 @@ export function SortableQuestion({
               </span>
             )}
             {question.required && (
-              <span className="text-[10px] text-red-500">Required</span>
+              <span className="text-[10px] text-red-500/70">Required</span>
             )}
           </div>
-        </button>
+        </div>
 
         {/* Actions */}
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 shrink-0">
           <Button
             variant="ghost"
             size="icon-xs"
@@ -143,7 +135,7 @@ export function SortableQuestion({
               e.stopPropagation();
               setShowPreview(true);
             }}
-            className="text-muted-foreground hover:text-foreground"
+            className="text-muted-foreground/40 hover:text-foreground"
             title="Preview question"
           >
             <svg
@@ -168,7 +160,7 @@ export function SortableQuestion({
                 e.stopPropagation();
                 setConfirmDelete(true);
               }}
-              className="text-muted-foreground hover:text-destructive"
+              className="text-muted-foreground/40 hover:text-destructive"
             >
               <svg
                 width="14"
@@ -185,16 +177,28 @@ export function SortableQuestion({
         </div>
       </div>
 
-      {/* Inline editor */}
-      {isSelected && (
-        <QuestionEditor
-          question={question}
-          allQuestions={allQuestions}
-          isLocked={isLocked}
-          onUpdate={onUpdate}
-          onDuplicateToPhase={onDuplicateToPhase}
-        />
-      )}
+      {/* Inline editor — animated expand/collapse */}
+      <AnimatePresence mode="sync">
+        {isSelected && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={springForIntent(isSelected ? "expand" : "collapse")}
+            className="overflow-hidden"
+          >
+            <div className="px-5 pb-5">
+              <QuestionEditor
+                question={question}
+                allQuestions={allQuestions}
+                isLocked={isLocked}
+                onUpdate={onUpdate}
+                onDuplicateToPhase={onDuplicateToPhase}
+              />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <ConfirmDialog
         open={confirmDelete}

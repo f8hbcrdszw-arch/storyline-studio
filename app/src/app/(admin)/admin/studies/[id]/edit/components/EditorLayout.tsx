@@ -180,11 +180,16 @@ function PanelResizer({ onResize }: { onResize: (delta: number) => void }) {
 
   return (
     <div
-      className="w-1 shrink-0 cursor-col-resize hover:bg-primary/20 active:bg-primary/30 transition-colors"
+      className="w-2 shrink-0 cursor-col-resize group flex items-center justify-center hover:bg-primary/10 active:bg-primary/20 transition-colors"
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
       onPointerCancel={handlePointerUp}
-    />
+      role="separator"
+      aria-label="Resize panel"
+    >
+      {/* Visible grab indicator */}
+      <div className="w-0.5 h-8 rounded-full bg-border group-hover:bg-primary/40 group-active:bg-primary/60 transition-colors" />
+    </div>
   );
 }

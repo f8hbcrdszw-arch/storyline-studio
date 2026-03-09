@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef } from "react";
+import { useCallback, useRef, useState } from "react";
 import {
   DndContext,
   closestCenter,
@@ -14,29 +14,11 @@ import {
   SortableContext,
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
+  useSortable,
 } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { useEditorStore } from "@/stores/editor-store";
-
-const PHASE_COLORS: Record<string, string> = {
-  SCREENING: "bg-orange-100 text-orange-800",
-  PRE_BALLOT: "bg-blue-100 text-blue-800",
-  STIMULUS: "bg-purple-100 text-purple-800",
-  POST_BALLOT: "bg-green-100 text-green-800",
-};
-
-const TYPE_LABELS: Record<string, string> = {
-  VIDEO_DIAL: "Video Dial",
-  MULTIPLE_CHOICE: "Multiple Choice",
-  LIKERT: "Likert Scale",
-  OPEN_TEXT: "Open Text",
-  NUMERIC: "Numeric",
-  AB_TEST: "A/B Test",
-  RANKING: "Ranking",
-  MATRIX: "Matrix",
-  MULTI_ITEM_RATING: "Multi-Item Rating",
-  SENTIMENT: "Sentiment",
-  REACTION: "Reaction",
-};
+import { TYPE_LABELS, PHASE_COLORS } from "@/lib/constants/editor";
 
 /**
  * Compact question list for the left panel of the split-pane editor.
@@ -48,6 +30,7 @@ export function QuestionList({ isLocked }: { isLocked: boolean }) {
   const selectQuestion = useEditorStore((s) => s.selectQuestion);
   const reorderQuestions = useEditorStore((s) => s.reorderQuestions);
   const study = useEditorStore((s) => s.study);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const reorderControllerRef = useRef<AbortController | null>(null);
 
@@ -92,22 +75,62 @@ export function QuestionList({ isLocked }: { isLocked: boolean }) {
     [questions, study?.id, reorderQuestions]
   );
 
+  const canDrag = !isLocked && questions.length > 1;
+
+  // Filter questions by search
+  const filtered = searchQuery.trim()
+    ? questions.filter(
+        (q) =>
+          q.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          (TYPE_LABELS[q.type] || q.type)
+            .toLowerCase()
+            .includes(searchQuery.toLowerCase())
+      )
+    : questions;
+
   return (
     <div>
       <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-2">
         Questions ({questions.length})
       </p>
+
+      {/* Search — only show with 5+ questions */}
+      {questions.length >= 5 && (
+        <div className="relative mb-2">
+          <svg
+            width="12"
+            height="12"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground/40"
+          >
+            <circle cx="11" cy="11" r="8" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Filter questions..."
+            className="w-full pl-7 pr-2 py-1.5 text-xs rounded-md border border-border bg-background placeholder:text-muted-foreground/40 outline-none focus:border-primary/40 transition-colors"
+          />
+        </div>
+      )}
+
       <DndContext
         sensors={sensors}
         collisionDetection={closestCenter}
         onDragEnd={handleDragEnd}
       >
         <SortableContext
-          items={questions.map((q) => q.id)}
+          items={filtered.map((q) => q.id)}
           strategy={verticalListSortingStrategy}
         >
           <div className="space-y-px">
-            {questions.map((q) => (
+            {filtered.map((q) => (
               <QuestionListItem
                 key={q.id}
                 id={q.id}
@@ -116,13 +139,19 @@ export function QuestionList({ isLocked }: { isLocked: boolean }) {
                 phase={q.phase}
                 order={q.order}
                 isSelected={selectedQuestionId === q.id}
-                isLocked={isLocked}
+                canDrag={canDrag}
                 onSelect={() => selectQuestion(selectedQuestionId === q.id ? null : q.id)}
               />
             ))}
           </div>
         </SortableContext>
       </DndContext>
+
+      {filtered.length === 0 && searchQuery && (
+        <p className="text-xs text-muted-foreground text-center py-4">
+          No questions match &ldquo;{searchQuery}&rdquo;
+        </p>
+      )}
 
       {questions.length === 0 && (
         <p className="text-xs text-muted-foreground text-center py-6">
@@ -135,9 +164,6 @@ export function QuestionList({ isLocked }: { isLocked: boolean }) {
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { useSortable } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
-
 function QuestionListItem({
   id,
   title,
@@ -145,7 +171,7 @@ function QuestionListItem({
   phase,
   order,
   isSelected,
-  isLocked,
+  canDrag,
   onSelect,
 }: {
   id: string;
@@ -154,7 +180,7 @@ function QuestionListItem({
   phase: string;
   order: number;
   isSelected: boolean;
-  isLocked: boolean;
+  canDrag: boolean;
   onSelect: () => void;
 }) {
   const {
@@ -164,7 +190,7 @@ function QuestionListItem({
     transform,
     transition,
     isDragging,
-  } = useSortable({ id, disabled: isLocked });
+  } = useSortable({ id, disabled: !canDrag });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -177,13 +203,12 @@ function QuestionListItem({
       ref={setNodeRef}
       style={style}
       onClick={onSelect}
-      className={`w-full text-left px-2.5 py-2 rounded-md text-xs transition-colors group ${
+      className={`w-full text-left px-2.5 py-2 rounded-md text-xs transition-all group ${
         isSelected
-          ? "bg-primary/10 text-foreground"
+          ? "bg-primary/10 text-foreground ring-1 ring-primary/20"
           : "hover:bg-accent/50 text-muted-foreground hover:text-foreground"
       }`}
-      {...attributes}
-      {...listeners}
+      {...(canDrag ? { ...attributes, ...listeners } : {})}
     >
       <div className="flex items-start gap-1.5">
         <span className="text-[10px] tabular-nums text-muted-foreground mt-0.5 shrink-0">
